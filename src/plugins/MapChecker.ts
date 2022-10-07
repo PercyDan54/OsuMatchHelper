@@ -63,6 +63,7 @@ export class MapChecker extends LobbyPlugin {
           break;
       }
     });
+    this.lobby.PluginMessage.on(a => this.onPluginMessage(a.type, a.args, a.src));
   }
 
   private onJoinedLobby(): void {
@@ -257,9 +258,9 @@ export class MapChecker extends LobbyPlugin {
     this.lastMapId = this.lobby.mapId;
     if (map.beatmapset) {
       const desc = this.getMapDescription(map, map.beatmapset);
-      this.lobby.SendMessage(`!mp map ${this.lobby.mapId} ${this.option.gamemode.value} | ${desc}`);
+      this.lobby.SendMessage(`!mp map ${map.id} ${this.option.gamemode.value} | ${desc}`);
     } else {
-      this.lobby.SendMessage(`!mp map ${this.lobby.mapId} ${this.option.gamemode.value}`);
+      this.lobby.SendMessage(`!mp map ${map.id} ${this.option.gamemode.value}`);
     }
   }
 
@@ -276,6 +277,24 @@ export class MapChecker extends LobbyPlugin {
   GetPluginStatus(): string {
     return `-- Map Checker --
   Regulation: ${this.getRegulationDescription()}`;
+  }
+
+  private async forceChangeMap(mapId: number) {
+    const map = await BeatmapRepository.getBeatmap(mapId, this.option.gamemode, this.option.allow_convert);
+    this.acceptMap(map);
+  }
+
+  private async onPluginMessage(type: string, args: string[], src: LobbyPlugin | null) {
+    switch (type) {
+      case 'changeMap':
+        if (args.length > 0) {
+          const mapId = Number.parseInt(args[0]);
+          if (!Number.isNaN(mapId)) {
+            await this.forceChangeMap(mapId);
+          }
+        }
+        break;
+    }
   }
 }
 

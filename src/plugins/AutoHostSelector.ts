@@ -8,6 +8,7 @@ import { getConfig } from '../TypedConfig';
 import { getLogger } from '../Loggers';
 
 export interface AutoHostSelectorOption {
+  enabled: boolean;
   show_host_order_after_every_match: boolean;
   host_order_chars_limit: number;
   host_order_cooltime_ms: number;
@@ -190,7 +191,7 @@ export class AutoHostSelector extends LobbyPlugin {
   private onMatchStarted(): void {
     if (!this.lobby.hostPending && this.needsRotate) {
       this.rotateQueue();
-    } else {
+    } else if (this.option.enabled) {
       this.logger.info('Rotation skipped.');
     }
   }
@@ -199,10 +200,10 @@ export class AutoHostSelector extends LobbyPlugin {
    * 試合が終了したら現在のキューの先頭をホストに任命
    */
   private onMatchFinished(): void {
-    this.needsRotate = true;
+    this.needsRotate = this.option.enabled;
     this.mapChanger = null;
     this.changeHost();
-    if (this.option.show_host_order_after_every_match) {
+    if (this.option.show_host_order_after_every_match && this.option.enabled) {
       this.ShowHostQueue();
     }
   }
@@ -353,6 +354,9 @@ export class AutoHostSelector extends LobbyPlugin {
    * Nameはチャットのhighlightに引っかからないように加工される
    */
   ShowHostQueue(): void {
+    if (!this.option.enabled) {
+      return;
+    }
     this.lobby.SendMessageWithCoolTime(() => {
       let m = this.hostQueue.map(c => disguiseUserName(c.name)).join(', ');
       this.logger.trace(m);
@@ -457,6 +461,9 @@ export class AutoHostSelector extends LobbyPlugin {
    * キューの先頭を末尾に
    */
   private changeHost(): void {
+    if (!this.option.enabled) {
+      return;
+    }
     if (this.hostQueue.length === 0) {
       if (this.lobby.host) {
         this.lobby.SendMessage('!mp clearhost');
