@@ -1,5 +1,11 @@
 {
   "timer": 120,
+  "bestOf": 5,
+  "ban": 5,
+  "tieBreaker": {
+    "timer": 300,
+    "map": 2257469
+  },
   "maps": {
     "NM": [
       2032868,

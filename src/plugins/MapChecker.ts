@@ -253,14 +253,15 @@ export class MapChecker extends LobbyPlugin {
     }
   }
 
-  private acceptMap(map: BeatmapCache): void {
+  private acceptMap(map: BeatmapCache, force: boolean = false): void {
     this.SendPluginMessage('validatedMap');
     this.lastMapId = this.lobby.mapId;
+    const mapId = force ? map.id : this.lobby.mapId;
     if (map.beatmapset) {
       const desc = this.getMapDescription(map, map.beatmapset);
-      this.lobby.SendMessage(`!mp map ${map.id} ${this.option.gamemode.value} | ${desc}`);
+      this.lobby.SendMessage(`!mp map ${mapId} ${this.option.gamemode.value} | ${desc}`);
     } else {
-      this.lobby.SendMessage(`!mp map ${map.id} ${this.option.gamemode.value}`);
+      this.lobby.SendMessage(`!mp map ${mapId} ${this.option.gamemode.value}`);
     }
   }
 
@@ -271,6 +272,11 @@ export class MapChecker extends LobbyPlugin {
     desc = desc.replace(/\$\{beatmapset_id\}/g, set.id.toString());
     desc = desc.replace(/\$\{star\}/g, map.difficulty_rating.toFixed(2));
     desc = desc.replace(/\$\{length\}/g, secToTimeNotation(map.total_length));
+    desc = desc.replace(/\$\{bpm\}/g, map.bpm.toString());
+    desc = desc.replace(/\$\{ar\}/g, map.ar.toFixed(2));
+    desc = desc.replace(/\$\{cs\}/g, map.cs.toFixed(2));
+    desc = desc.replace(/\$\{od\}/g, map.accuracy.toFixed(2));
+    desc = desc.replace(/\$\{hp\}/g, map.drain.toFixed(2));
     return desc;
   }
 
@@ -281,15 +287,15 @@ export class MapChecker extends LobbyPlugin {
 
   private async forceChangeMap(mapId: number) {
     const map = await BeatmapRepository.getBeatmap(mapId, this.option.gamemode, this.option.allow_convert);
-    this.acceptMap(map);
+    this.acceptMap(map, true);
   }
 
   private async onPluginMessage(type: string, args: string[], src: LobbyPlugin | null) {
     switch (type) {
       case 'changeMap':
         if (args.length > 0) {
-          const mapId = Number.parseInt(args[0]);
-          if (!Number.isNaN(mapId)) {
+          const mapId = parseInt(args[0]);
+          if (Number.isInteger(mapId)) {
             await this.forceChangeMap(mapId);
           }
         }

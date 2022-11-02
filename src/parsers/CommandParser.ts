@@ -35,7 +35,7 @@ export namespace parser {
           return makeBanchoResponse(BanchoResponseType.AbortedStartTimer);
         }
         if (message === 'Countdown finished') {
-          return makeBanchoResponse(BanchoResponseType.TimerTimeout);
+          return makeBanchoResponse(BanchoResponseType.TimerFinished);
         }
         const m_size = message.match(/Changed match to size (\d+)/);
         if (m_size) {
@@ -330,7 +330,7 @@ export enum BanchoResponseType {
   LockedMatch,
   UnlockedMatch,
   NoUserSpecified,
-  TimerTimeout
+  TimerFinished
 }
 
 function makeBanchoResponse(type: BanchoResponseType, ...params: any[]) {

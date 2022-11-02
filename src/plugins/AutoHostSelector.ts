@@ -264,6 +264,9 @@ export class AutoHostSelector extends LobbyPlugin {
     if (command.startsWith('!q')) {
       this.ShowHostQueue();
     } else if (player.isAuthorized) {
+      if (command === '*toggle') {
+        this.option.enabled = !this.option.enabled;
+      }
       if (command === '*reorder' || command === '*order') {
         if (param !== '') {
           this.Reorder(param);
