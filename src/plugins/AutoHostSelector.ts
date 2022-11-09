@@ -266,6 +266,8 @@ export class AutoHostSelector extends LobbyPlugin {
     } else if (player.isAuthorized) {
       if (command === '*toggle') {
         this.option.enabled = !this.option.enabled;
+        this.lobby.SendMessage(`Toggled host rotation: ${this.option.enabled}`);
+        return;
       }
       if (command === '*reorder' || command === '*order') {
         if (param !== '') {
