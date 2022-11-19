@@ -59,6 +59,7 @@ export class MatchHelper extends LobbyPlugin {
   teamBanCount: Map<TeamInfo, number> = new Map<TeamInfo, number>();
   startedPlayers: number = 0;
   finishedPlayers: number = 0;
+  pointsToWin: number = 1;
   teamScore: Map<TeamInfo, number> = new Map<TeamInfo, number>();
   matchScore: Map<TeamInfo, number> = new Map<TeamInfo, number>();
 
@@ -94,13 +95,14 @@ export class MatchHelper extends LobbyPlugin {
       match.customScoreMultipliers.maps = new Map<string, number>(Object.entries(match.customScoreMultipliers['maps']));
       match.customScoreMultipliers.players = new Map<string, number>(Object.entries(match.customScoreMultipliers['players']));
       match.maps = new Map<string, number[]>(Object.entries(match['maps']));
-
+      this.pointsToWin = Math.floor(match.bestOf / 2);
       for (const team of match.teams) {
         if (team.members.length === 1) {
           team.name = team.members[0];
         }
       }
       this.match = match;
+      this.resetMatchScore();
       this.logger.info('Loaded match config');
     } else {
       this.logger.warn('Match config does not exist');
@@ -115,7 +117,7 @@ export class MatchHelper extends LobbyPlugin {
         return;
 
       const team = this.getPlayerTeam(player.name);
-      if (team === null) {
+      if (!team) {
         return;
       }
 
@@ -137,9 +139,13 @@ export class MatchHelper extends LobbyPlugin {
       this.teamScore.clear();
       this.startedPlayers = 0;
       this.scoreUpdated = false;
-      for (const player of this.lobby.players) {
-        if (this.getPlayerTeam(player.name) !== null) {
-          this.startedPlayers++;
+      const players = Array.from(this.lobby.playersMap.keys());
+      for (const team of this.match.teams) {
+        this.teamScore.set(team, 0);
+        for (const member of team.members) {
+          if (players.includes(member)) {
+            this.startedPlayers++;
+          }
         }
       }
       this.finishedPlayers = 0;
@@ -168,11 +174,8 @@ export class MatchHelper extends LobbyPlugin {
     }
     const teamScoreSorted = new Map([...this.teamScore.entries()].sort((a, b) => b[1] - a[1]));
     const scoreTeams = Array.from(teamScoreSorted.keys());
-
     const winner = scoreTeams[0];
-    const other = scoreTeams[1];
     MatchHelper.increment(this.matchScore, winner, this.getMapMultiplier(this.currentPick));
-    MatchHelper.increment(this.matchScore, other, 0);
 
     const teams = Array.from(this.matchScore.keys());
     const matchScore = Array.from(this.matchScore.values());
@@ -185,11 +188,17 @@ export class MatchHelper extends LobbyPlugin {
     this.currentPick = '';
     this.scoreUpdated = true;
 
-    if (score1 === score2 && score1 === Math.ceil(this.match.bestOf / 2) - 1) {
+    if (score1 === score2 && score1 === this.pointsToWin - 1) {
       this.triggerTiebreaker();
     } else {
-      this.rotatePickTeam();
+      for (let i = 0; i < matchScore.length; i++) {
+        if (matchScore[i] === this.pointsToWin) {
+          this.lobby.SendMessage(`恭喜 ${teams[i].name} 队取得胜利`);
+          return;
+        }
+      }
     }
+    this.rotatePickTeam();
   }
 
   private triggerTiebreaker() {
@@ -262,13 +271,11 @@ export class MatchHelper extends LobbyPlugin {
               this.resetPick();
               break;
             case 'score':
-              this.matchScore.clear();
-              this.tie = false;
+              this.resetMatchScore();
               break;
             default:
               this.resetPick();
-              this.matchScore.clear();
-              this.tie = false;
+              this.resetMatchScore();
               break;
           }
           this.lobby.SendMessage('已重置');
@@ -396,6 +403,13 @@ export class MatchHelper extends LobbyPlugin {
     this.teamBanCount.clear();
   }
 
+  private resetMatchScore() {
+    this.tie = false;
+    for (const team of this.match.teams) {
+      this.matchScore.set(team, 0);
+    }
+  }
+
   private getMap(param: string): MatchMapInfo | null {
     param = param.toUpperCase();
     const mod = param.slice(0, 2);
@@ -404,12 +418,12 @@ export class MatchHelper extends LobbyPlugin {
       this.lobby.SendMessage('操作失败:  图不存在');
       return null;
     }
-    const maps = this.match.maps.get(mod);
-    let map = maps![id];
+    const maps = this.match.maps.get(mod)!;
+    let map = maps[id];
     if (!map) {
       param += '1';
-      map = maps![0];
-      if (!map) {
+      map = maps[0];
+      if (!map || maps.length > 1) {
         this.lobby.SendMessage('操作失败:  图不存在');
         return null;
       }
@@ -420,7 +434,7 @@ export class MatchHelper extends LobbyPlugin {
   private getMapMultiplier(param: string): number {
     const mod = param.slice(0, 2);
     if (this.match.customScoreMultipliers.maps.has(param)) {
-      return this.match.customScoreMultipliers.maps.get(param)!;
+      return MatchHelper.getOrDefault(this.match.customScoreMultipliers.maps, param);
     } else {
       return MatchHelper.getOrDefault(this.match.customScoreMultipliers.maps, mod);
     }
