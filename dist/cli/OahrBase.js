@@ -23,6 +23,7 @@ const AfkKicker_1 = require("../plugins/AfkKicker");
 const MiscLoader_1 = require("../plugins/MiscLoader");
 const CommandParser_1 = require("../parsers/CommandParser");
 const CacheCleaner_1 = require("../plugins/CacheCleaner");
+const MatchHelper_1 = require("../plugins/MatchHelper");
 const logger = (0, Loggers_1.getLogger)('ahr');
 const OahrCliDefaultOption = config_1.default.get('OahrCli');
 class OahrBase {
@@ -45,6 +46,7 @@ class OahrBase {
         this.keeper = new LobbyKeeper_1.LobbyKeeper(this.lobby);
         this.afkkicker = new AfkKicker_1.AfkKicker(this.lobby);
         this.cleaner = new CacheCleaner_1.CacheCleaner(this.lobby);
+        this.matchHelper = new MatchHelper_1.MatchHelper(this.lobby);
         this.lobby.RaisePluginsLoaded();
     }
     get isRegistered() {

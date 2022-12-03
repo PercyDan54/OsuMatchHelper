@@ -51,6 +51,7 @@ export class MatchHelper extends LobbyPlugin {
   match: MatchInfo = new MatchInfo();
   tie: boolean = false;
   warmup: boolean = true;
+  startPending: boolean = false;
   scoreUpdated: boolean = false;
   currentPick: string = '';
   currentPickTeam: number = 0;
@@ -95,7 +96,7 @@ export class MatchHelper extends LobbyPlugin {
       match.customScoreMultipliers.maps = new Map<string, number>(Object.entries(match.customScoreMultipliers['maps']));
       match.customScoreMultipliers.players = new Map<string, number>(Object.entries(match.customScoreMultipliers['players']));
       match.maps = new Map<string, number[]>(Object.entries(match['maps']));
-      this.pointsToWin = Math.floor(match.bestOf / 2);
+      this.pointsToWin = Math.ceil(match.bestOf / 2);
       for (const team of match.teams) {
         if (team.members.length === 1) {
           team.name = team.members[0];
@@ -129,6 +130,7 @@ export class MatchHelper extends LobbyPlugin {
       this.logger.info(`Player finished: ${player.name}: ${multiplier === 1 ? score.toLocaleString('en-US') : `${score.toLocaleString('en-US')} x${multiplier} = ${effectiveScore.toLocaleString('en-US')}`} (${this.finishedPlayers} / ${this.startedPlayers})`);
       if (this.finishedPlayers >= this.startedPlayers) {
         this.updateMatchScore();
+        this.startPending = false;
       }
     });
     this.lobby.MatchStarted.on(() => {
@@ -153,9 +155,10 @@ export class MatchHelper extends LobbyPlugin {
     this.lobby.ReceivedBanchoResponse.on(a => {
       switch (a.response.type) {
         case BanchoResponseType.AllPlayerReady:
-          if (this.currentPick !== '') {
+          if (this.currentPick !== '' && !this.warmup && !this.startPending) {
             this.lobby.SendMessage('所有选手已准备，比赛即将开始');
             this.lobby.SendMessage('!mp start 10');
+            this.startPending = true;
           }
           break;
         case BanchoResponseType.TimerFinished:
@@ -172,6 +175,7 @@ export class MatchHelper extends LobbyPlugin {
       this.logger.warn('Match score change triggered more than once');
       return;
     }
+
     const teamScoreSorted = new Map([...this.teamScore.entries()].sort((a, b) => b[1] - a[1]));
     const scoreTeams = Array.from(teamScoreSorted.keys());
     const winner = scoreTeams[0];
@@ -237,7 +241,7 @@ export class MatchHelper extends LobbyPlugin {
           param = param.toUpperCase();
           if (this.mapsBanned.has(param)) {
             const team = this.mapsBanned.get(param);
-            if (team !== null) {
+            if (team) {
               MatchHelper.increment(this.teamBanCount, team, -1);
             }
             this.mapsBanned.delete(param);
@@ -251,7 +255,7 @@ export class MatchHelper extends LobbyPlugin {
           this.lobby.SendMessage(`已切换热手状态: ${this.warmup}`);
           if (!this.warmup) {
             this.lobby.SendMessage('!mp clearhost');
-            this.lobby.SendMessage('!mp set 0 3');
+            this.lobby.SendMessage('!mp set 2 3');
           }
         }
         break;
@@ -341,7 +345,7 @@ export class MatchHelper extends LobbyPlugin {
 
       const mod = param.slice(0, 2);
       const map = this.getMap(param);
-      if (map === null) {
+      if (!map) {
         return;
       }
 
@@ -372,7 +376,7 @@ export class MatchHelper extends LobbyPlugin {
       }
 
       const team = this.getPlayerTeam(player.name);
-      if (team === null && !player.isReferee) {
+      if (!team && !player.isReferee) {
         return;
       }
 
@@ -398,6 +402,7 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private resetPick() {
+    this.currentPick = '';
     this.mapsChosen = [];
     this.mapsBanned.clear();
     this.teamBanCount.clear();

@@ -41,6 +41,7 @@ class MapChecker extends LobbyPlugin_1.LobbyPlugin {
                     break;
             }
         });
+        this.lobby.PluginMessage.on(a => this.onPluginMessage(a.type, a.args, a.src));
     }
     onJoinedLobby() {
         if (this.option.enabled) {
@@ -219,15 +220,16 @@ class MapChecker extends LobbyPlugin_1.LobbyPlugin {
             this.skipHost();
         }
     }
-    acceptMap(map) {
+    acceptMap(map, force = false) {
         this.SendPluginMessage('validatedMap');
         this.lastMapId = this.lobby.mapId;
+        const mapId = force ? map.id : this.lobby.mapId;
         if (map.beatmapset) {
             const desc = this.getMapDescription(map, map.beatmapset);
-            this.lobby.SendMessage(`!mp map ${this.lobby.mapId} ${this.option.gamemode.value} | ${desc}`);
+            this.lobby.SendMessage(`!mp map ${mapId} ${this.option.gamemode.value} | ${desc}`);
         }
         else {
-            this.lobby.SendMessage(`!mp map ${this.lobby.mapId} ${this.option.gamemode.value}`);
+            this.lobby.SendMessage(`!mp map ${mapId} ${this.option.gamemode.value}`);
         }
     }
     getMapDescription(map, set) {
@@ -235,13 +237,38 @@ class MapChecker extends LobbyPlugin_1.LobbyPlugin {
         desc = desc.replace(/\$\{title\}/g, set.title);
         desc = desc.replace(/\$\{map_id\}/g, map.id.toString());
         desc = desc.replace(/\$\{beatmapset_id\}/g, set.id.toString());
-        desc = desc.replace(/\$\{star\}/g, map.difficulty_rating.toFixed(2));
+        desc = desc.replace(/\$\{star\}/g, MapChecker.roundNumber(map.difficulty_rating, 2).toString());
         desc = desc.replace(/\$\{length\}/g, secToTimeNotation(map.total_length));
+        desc = desc.replace(/\$\{bpm\}/g, map.bpm.toString());
+        desc = desc.replace(/\$\{ar\}/g, MapChecker.roundNumber(map.ar).toString());
+        desc = desc.replace(/\$\{cs\}/g, MapChecker.roundNumber(map.cs).toString());
+        desc = desc.replace(/\$\{od\}/g, MapChecker.roundNumber(map.accuracy).toString());
+        desc = desc.replace(/\$\{hp\}/g, MapChecker.roundNumber(map.drain).toString());
         return desc;
+    }
+    static roundNumber(num, digit = 1) {
+        const mult = Math.pow(10, digit);
+        return (Math.round(num * mult) / mult);
     }
     GetPluginStatus() {
         return `-- Map Checker --
   Regulation: ${this.getRegulationDescription()}`;
+    }
+    async forceChangeMap(mapId) {
+        const map = await BeatmapRepository_1.BeatmapRepository.getBeatmap(mapId, this.option.gamemode, this.option.allow_convert);
+        this.acceptMap(map, true);
+    }
+    async onPluginMessage(type, args, src) {
+        switch (type) {
+            case 'changeMap':
+                if (args.length > 0) {
+                    const mapId = parseInt(args[0]);
+                    if (Number.isInteger(mapId)) {
+                        await this.forceChangeMap(mapId);
+                    }
+                }
+                break;
+        }
     }
 }
 exports.MapChecker = MapChecker;

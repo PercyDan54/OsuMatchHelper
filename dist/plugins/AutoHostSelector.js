@@ -177,7 +177,7 @@ class AutoHostSelector extends LobbyPlugin_1.LobbyPlugin {
         if (!this.lobby.hostPending && this.needsRotate) {
             this.rotateQueue();
         }
-        else {
+        else if (this.option.enabled) {
             this.logger.info('Rotation skipped.');
         }
     }
@@ -185,10 +185,10 @@ class AutoHostSelector extends LobbyPlugin_1.LobbyPlugin {
      * 試合が終了したら現在のキューの先頭をホストに任命
      */
     onMatchFinished() {
-        this.needsRotate = true;
+        this.needsRotate = this.option.enabled;
         this.mapChanger = null;
         this.changeHost();
-        if (this.option.show_host_order_after_every_match) {
+        if (this.option.show_host_order_after_every_match && this.option.enabled) {
             this.ShowHostQueue();
         }
     }
@@ -250,6 +250,11 @@ class AutoHostSelector extends LobbyPlugin_1.LobbyPlugin {
             this.ShowHostQueue();
         }
         else if (player.isAuthorized) {
+            if (command === '*toggle') {
+                this.option.enabled = !this.option.enabled;
+                this.lobby.SendMessage(`Toggled host rotation: ${this.option.enabled}`);
+                return;
+            }
             if (command === '*reorder' || command === '*order') {
                 if (param !== '') {
                     this.Reorder(param);
@@ -335,6 +340,9 @@ class AutoHostSelector extends LobbyPlugin_1.LobbyPlugin {
      * Nameはチャットのhighlightに引っかからないように加工される
      */
     ShowHostQueue() {
+        if (!this.option.enabled) {
+            return;
+        }
         this.lobby.SendMessageWithCoolTime(() => {
             let m = this.hostQueue.map(c => (0, Player_1.disguiseUserName)(c.name)).join(', ');
             this.logger.trace(m);
@@ -434,6 +442,9 @@ class AutoHostSelector extends LobbyPlugin_1.LobbyPlugin {
      * キューの先頭を末尾に
      */
     changeHost() {
+        if (!this.option.enabled) {
+            return;
+        }
         if (this.hostQueue.length === 0) {
             if (this.lobby.host) {
                 this.lobby.SendMessage('!mp clearhost');

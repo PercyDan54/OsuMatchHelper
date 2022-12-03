@@ -38,6 +38,9 @@ var parser;
                 if (message === 'Countdown aborted') {
                     return makeBanchoResponse(BanchoResponseType.AbortedStartTimer);
                 }
+                if (message === 'Countdown finished') {
+                    return makeBanchoResponse(BanchoResponseType.TimerFinished);
+                }
                 const m_size = message.match(/Changed match to size (\d+)/);
                 if (m_size) {
                     return makeBanchoResponse(BanchoResponseType.LobbySizeChanged, parseInt(m_size[1]));
@@ -325,6 +328,7 @@ var BanchoResponseType;
     BanchoResponseType[BanchoResponseType["LockedMatch"] = 40] = "LockedMatch";
     BanchoResponseType[BanchoResponseType["UnlockedMatch"] = 41] = "UnlockedMatch";
     BanchoResponseType[BanchoResponseType["NoUserSpecified"] = 42] = "NoUserSpecified";
+    BanchoResponseType[BanchoResponseType["TimerFinished"] = 43] = "TimerFinished";
 })(BanchoResponseType = exports.BanchoResponseType || (exports.BanchoResponseType = {}));
 function makeBanchoResponse(type, ...params) {
     return { type, params };
