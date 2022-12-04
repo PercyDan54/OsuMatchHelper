@@ -1,6 +1,6 @@
 {
   "timer": 90,
-  "bestOf": 13,
+  "bestOf": 9,
   "maxBan": 1,
   "freeMod": [
     "FM",
@@ -15,6 +15,7 @@
       "EX": 2
     },
     "players": {
+      "VialVistas": 0.75
     }
   },
   "maps": {
@@ -50,13 +51,13 @@
     {
       "name": "A",
       "members": [
-        "n-buna"
+        "akuya"
       ]
     },
     {
       "name": "B",
       "members": [
-        "akuya"
+        "VialVistas"
       ]
     }
   ]

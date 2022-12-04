@@ -135,8 +135,9 @@ class MatchHelper extends LobbyPlugin_1.LobbyPlugin {
             this.mapsChosen.push(this.currentPick);
             this.teamScore.clear();
             this.startedPlayers = 0;
+            this.finishedPlayers = 0;
             this.scoreUpdated = false;
-            const players = Array.from(this.lobby.playersMap.keys());
+            const players = Array.from(this.lobby.players).map(p => p.name);
             for (const team of this.match.teams) {
                 this.teamScore.set(team, 0);
                 for (const member of team.members) {
@@ -145,7 +146,6 @@ class MatchHelper extends LobbyPlugin_1.LobbyPlugin {
                     }
                 }
             }
-            this.finishedPlayers = 0;
         });
         this.lobby.ReceivedBanchoResponse.on(a => {
             switch (a.response.type) {
@@ -354,7 +354,7 @@ class MatchHelper extends LobbyPlugin_1.LobbyPlugin {
     }
     processBan(param, player) {
         const map = this.getMap(param);
-        if (param.length > 2 && map !== null) {
+        if (param.length > 2 && map) {
             if (this.mapsBanned.has(map.name)) {
                 return;
             }
@@ -362,7 +362,7 @@ class MatchHelper extends LobbyPlugin_1.LobbyPlugin {
             if (!team && !player.isReferee) {
                 return;
             }
-            if (team !== null && this.teamBanCount.get(team) >= this.match.maxBan) {
+            if (team && this.teamBanCount.get(team) >= this.match.maxBan) {
                 this.lobby.SendMessage(`操作失败: 队伍 ${team?.name} ban已达到上限`);
                 return;
             }
@@ -377,6 +377,7 @@ class MatchHelper extends LobbyPlugin_1.LobbyPlugin {
         }
         else if (this.match.freeMod.includes(mod)) {
             this.lobby.SendMessage('!mp mods FreeMod');
+            this.lobby.DeferMessage('本图使用FreeMod，请选手带上NF', 'freeModNotice', 5000, false);
         }
         else {
             this.lobby.SendMessage(`!mp mods NF ${mod}`);
