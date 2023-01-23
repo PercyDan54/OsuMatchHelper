@@ -48,33 +48,38 @@
     "afk_check_timeout_ms": 5000,
     "afk_check_interval_first_ms": 45000,
     "afk_check_interval_ms": 90000,
-    "afk_check_do_skip": true
+    "afk_check_do_skip": false
   },
   "LobbyKeeper": {
     "mode": null,
     "size": null,
     "password": null,
     "mods": null,
-    "hostkick_tolerance": 4,
+    "hostkick_tolerance": 5,
     "title": null
   },
   "LobbyTerminator": {
-    "terminate_time_ms": 60000
+    "terminate_time_ms": 600000000
   },
   "MapChecker": {
     "enabled": true,
-    "star_min": 0,
+    "star_min": 3,
     "star_max": 0,
     "length_min": 0,
-    "length_max": 0,
+    "length_max": 600,
     "gamemode": "osu",
-    "num_violations_allowed": 3,
+    "num_violations_allowed": 5,
     "allow_convert": true,
-    "map_description": "[https://osu.ppy.sh/b/${map_id} ${title}] | Star Rating: ${star} | AR: ${ar} | CS: ${cs} | OD: ${od} | HP: ${hp} | BPM: ${bpm} | Length: ${length} | Download: [https://dl.sayobot.cn/beatmaps/download/full/${beatmapset_id} Sayobot]  [https://dl.sayobot.cn/beatmaps/download/novideo/${beatmapset_id} Sayobot NoVideo]"
+    "map_description": "[https://osu.ppy.sh/b/${map_id} ${title}] | ${star}★ | ${length} | AR${ar} | CS${cs} | OD${od} | HP${hp} | ${bpm}BPM | Download: [https://dl.sayobot.cn/beatmaps/download/full/${beatmapset_id} Sayobot]  [https://dl.sayobot.cn/beatmaps/download/novideo/${beatmapset_id} Sayobot NoVideo]"
   },
   "MiscLoader": {},
   "MatchHelper": {
-    "enabled": true
+    "enabled": true,
+    "kook": {
+      "enabled": false,
+      "token": "",
+      "channelId": ""
+    }
   },
   "MatchStarter": {
     "vote_rate": 0.45,
@@ -88,7 +93,7 @@
     "vote_msg_defer_ms": 5000,
     "auto_abort_rate": 0.5,
     "auto_abort_delay_ms": 30000,
-    "auto_abort_do_abort": true
+    "auto_abort_do_abort": false
   },
   "WordCounter": {
     "periods": [

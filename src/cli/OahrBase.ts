@@ -95,8 +95,6 @@ export class OahrBase {
   }
 
   async makeLobbyAsync(name: string): Promise<void> {
-    // Remove all but ascii graphic characters
-    name = name.replace(/[^ -~]/g, '');
     if (!this.isRegistered) await this.ensureRegisteredAsync();
     logger.info(`Making a lobby... Name: ${name}`);
     await this.lobby.MakeLobbyAsync(name);

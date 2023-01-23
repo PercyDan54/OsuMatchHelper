@@ -5,13 +5,22 @@ import { BanchoResponseType } from '../parsers/CommandParser';
 import fs from 'fs';
 import { getConfig } from '../TypedConfig';
 import path from 'path';
+import { BaseClient } from 'kookts';
+import { KookCardMessage, KookModule, KookText, Paragraph } from '../kook/KookMessage';
+import { PlayerSettings } from '../parsers/MpSettingsParser';
 
 export interface MatchHelperOption {
   enabled: boolean;
+  kook: {
+    enabled: boolean,
+    token: string,
+    channelId: string,
+  };
 }
 
 class TeamInfo {
   name: string = '';
+  leader: string = '';
   members: string[] = [];
 }
 
@@ -43,7 +52,24 @@ class MatchInfo {
   tieBreaker: TieBreakerInfo = new TieBreakerInfo();
   customScoreMultipliers: ScoreMultiplierInfo = new ScoreMultiplierInfo();
   teams: TeamInfo[] = [];
-  freeMod: string[] = [];
+  activeTeams: string[] = [];
+  freeMod: string[] = ['FM'];
+}
+
+function getOrDefault(map: Map<any, any>, index: any, _default: any = 1): any {
+  if (!map.has(index)) {
+    return _default;
+  } else {
+    return map.get(index) as any;
+  }
+}
+
+function increment(map: Map<any, number>, index: any, amount: number = 1) {
+  if (!map.has(index)) {
+    map.set(index, amount);
+  } else {
+    map.set(index, map.get(index) as number + amount);
+  }
 }
 
 export class MatchHelper extends LobbyPlugin {
@@ -56,57 +82,75 @@ export class MatchHelper extends LobbyPlugin {
   currentPick: string = '';
   currentPickTeam: number = 0;
   mapsChosen: string[] = [];
-  mapsBanned: Map<string, TeamInfo | null> = new Map<string, TeamInfo>();
+  mapsBanned: Map<string, TeamInfo> = new Map<string, TeamInfo>();
   teamBanCount: Map<TeamInfo, number> = new Map<TeamInfo, number>();
   startedPlayers: number = 0;
   finishedPlayers: number = 0;
   pointsToWin: number = 1;
   teamScore: Map<TeamInfo, number> = new Map<TeamInfo, number>();
   matchScore: Map<TeamInfo, number> = new Map<TeamInfo, number>();
+  freeMod: boolean = false;
+  kookClient: BaseClient | undefined;
+  kookMessages: Map<TeamInfo, KookText[]> = new Map<TeamInfo, KookText[]>();
 
   constructor(lobby: Lobby, option: Partial<MatchHelperOption> = {}) {
     super(lobby, 'MatchHelper', 'matchHelper');
     this.option = getConfig(this.pluginName, option) as MatchHelperOption;
+    if (this.option.kook.enabled) {
+      this.kookClient = new BaseClient({
+        mode: 'websocket',
+        token: this.option.kook.token,
+        logConfig: {level: 'warn'},
+      });
+    }
     this.loadMatch();
     if (this.option.enabled) {
       this.registerEvents();
     }
   }
 
-  private static getOrDefault(map: Map<any, any>, index: any, _default: any = 1): any {
-    if (!map.has(index)) {
-      return _default;
-    } else {
-      return map.get(index) as any;
-    }
-  }
-
-  private static increment(map: Map<any, number>, index: any, amount: number = 1) {
-    if (!map.has(index)) {
-      map.set(index, amount);
-    } else {
-      map.set(index, map.get(index) as number + amount);
-    }
-  }
-
   private loadMatch() {
     const config = path.join('config', 'match.json');
+
     if (fs.existsSync(config)) {
       const match = JSON.parse(fs.readFileSync(config, 'utf8'));
       match.customScoreMultipliers.maps = new Map<string, number>(Object.entries(match.customScoreMultipliers['maps']));
       match.customScoreMultipliers.players = new Map<string, number>(Object.entries(match.customScoreMultipliers['players']));
       match.maps = new Map<string, number[]>(Object.entries(match['maps']));
       this.pointsToWin = Math.ceil(match.bestOf / 2);
+      const teams = new Map<string, TeamInfo>();
+
       for (const team of match.teams) {
+        if (!team.leader) {
+          team.leader = team.members[0];
+        } else {
+          team.members.push(team.leader);
+        }
+
         if (team.members.length === 1) {
           team.name = team.members[0];
         }
+        teams.set(team.name, team);
       }
       this.match = match;
+
+      this.match.teams = [];
+      for (const t of match.activeTeams) {
+        if (teams.has(t)) {
+          this.match.teams.push(teams.get(t) as TeamInfo);
+        } else {
+          this.logger.warn(`Team ${t} not found`);
+        }
+      }
+
       this.resetMatchScore();
       this.logger.info('Loaded match config');
     } else {
-      this.logger.warn('Match config does not exist');
+      this.logger.error('Match config does not exist');
+    }
+
+    if (this.kookClient) {
+      this.kookClient.connect();
     }
   }
 
@@ -122,12 +166,25 @@ export class MatchHelper extends LobbyPlugin {
         return;
       }
 
-      const multiplier = MatchHelper.getOrDefault(this.match.customScoreMultipliers.players, player.name);
-      const effectiveScore = Math.round(score * multiplier);
-      MatchHelper.increment(this.teamScore, team, effectiveScore);
+      let multiplier = getOrDefault(this.match.customScoreMultipliers.players, player.name);
+      let multiplierText = '';
+      multiplierText += `x${multiplier}`;
 
+      const playerOptions = this.getPlayerSettings(player.name)?.options ?? '';
+      if (this.freeMod && playerOptions.includes('Easy')) {
+        multiplier *= 1.8;
+        multiplierText += ' x1.8';
+      }
+      const effectiveScore = Math.round(score * multiplier);
+      increment(this.teamScore, team, effectiveScore);
+      multiplierText += ` = ${effectiveScore.toLocaleString('en-US')}`;
       this.finishedPlayers++;
-      this.logger.info(`Player finished: ${player.name}: ${multiplier === 1 ? score.toLocaleString('en-US') : `${score.toLocaleString('en-US')} x${multiplier} = ${effectiveScore.toLocaleString('en-US')}`} (${this.finishedPlayers} / ${this.startedPlayers})`);
+
+      const playerScoreText = `${score.toLocaleString('en-US')} ${multiplierText}`;
+      this.logger.info(`${player.name}: ${playerScoreText} (${this.finishedPlayers} / ${this.startedPlayers})`);
+      const kookText = this.kookMessages.get(team) as KookText[];
+      kookText[0].content += `\n${player.name}`;
+      kookText[1].content += `\n${playerScoreText}`;
       if (this.finishedPlayers >= this.startedPlayers) {
         this.updateMatchScore();
         this.startPending = false;
@@ -143,9 +200,15 @@ export class MatchHelper extends LobbyPlugin {
       this.startedPlayers = 0;
       this.finishedPlayers = 0;
       this.scoreUpdated = false;
+      this.kookMessages.clear();
+      if (this.freeMod) {
+        this.lobby.LoadMpSettingsAsync().then();
+      }
+
       const players = Array.from(this.lobby.players).map(p => p.name);
       for (const team of this.match.teams) {
         this.teamScore.set(team, 0);
+        this.kookMessages.set(team, [new KookText('kmarkdown', '玩家'), new KookText('kmarkdown', '分数')]);
         for (const member of team.members) {
           if (players.includes(member)) {
             this.startedPlayers++;
@@ -162,11 +225,16 @@ export class MatchHelper extends LobbyPlugin {
             this.startPending = true;
           }
           break;
+        case BanchoResponseType.AbortedMatch:
+        case BanchoResponseType.AbortedStartTimer:
+          this.startPending = false;
+          break;
         case BanchoResponseType.TimerFinished:
-          if (this.currentPick === '' && !this.warmup) {
+          if (this.currentPick === '' && !this.warmup && !this.tie) {
             this.lobby.SendMessage(`计时超时，${this.match.teams[this.currentPickTeam].name} 队无选手选图`);
             this.rotatePickTeam();
           }
+          break;
       }
     });
   }
@@ -180,16 +248,45 @@ export class MatchHelper extends LobbyPlugin {
     const teamScoreSorted = new Map([...this.teamScore.entries()].sort((a, b) => b[1] - a[1]));
     const scoreTeams = Array.from(teamScoreSorted.keys());
     const winner = scoreTeams[0];
-    MatchHelper.increment(this.matchScore, winner, this.getMapMultiplier(this.currentPick));
+    increment(this.matchScore, winner, this.getMapMultiplier(this.currentPick));
 
     const teams = Array.from(this.matchScore.keys());
     const matchScore = Array.from(this.matchScore.values());
     const teamScores = Array.from(teamScoreSorted.values());
 
-    this.lobby.SendMessage(`本轮 ${winner.name} 队以 ${(teamScores[0] - teamScores[1]).toLocaleString('en-US')} 分优势胜出`);
+    const msg = new KookCardMessage();
+    msg.modules.push(new KookModule('header', new KookText('plain-text', `玩家得分 - ${this.lobby.lobbyName}`)));
+    for (let i = 0; i < scoreTeams.length; i++) {
+      msg.modules.push(new KookModule('divider'));
+      msg.modules.push(new KookModule('header', new KookText('plain-text', scoreTeams[i].name)));
+      const paragraph = new Paragraph();
+      const text = this.kookMessages.get(scoreTeams[i]) as KookText[];
+      const formattedScore = teamScores[i].toLocaleString('en-US');
+      text[0].content += `\n**总分: ${formattedScore}**`;
+      paragraph.fields.push(text[0]);
+      paragraph.fields.push(text[1]);
+      msg.modules.push(new KookModule('section', paragraph));
+      this.lobby.SendMessage(`${scoreTeams[i].name}: ${formattedScore}`);
+    }
+
+    let message = `本轮 ${winner.name} 队以 ${(teamScores[0] - teamScores[1]).toLocaleString('en-US')} 分优势胜出`;
+    this.lobby.SendMessage(message);
+    msg.modules.push(new KookModule('divider'));
+    msg.modules.push(new KookModule('header', new KookText('plain-text', message)));
+    if (this.currentPick !== '') {
+      msg.modules.push(new KookModule('header', new KookText('plain-text', `${this.match.teams[this.currentPickTeam].name} 队选了 ${this.currentPick} (BID ${this.lobby.mapId})`)));
+    } else if (this.tie) {
+      msg.modules.push(new KookModule('header', new KookText('plain-text', `当前选图 TB (BID ${this.lobby.mapId})`)));
+    }
     const score1 = matchScore[0];
     const score2 = matchScore[1];
-    this.lobby.SendMessage(`${teams[0].name}: ${score1} | ${score2}: ${teams[1].name}`);
+    message = `${teams[0].name}: ${score1} | ${score2}: ${teams[1].name}`;
+    this.lobby.SendMessage(message);
+    msg.modules.push(new KookModule('divider'));
+    msg.modules.push(new KookModule('header', new KookText('plain-text', `当前比分: ${message}`)));
+    if (this.kookClient) {
+      this.kookClient.Api.message.create(10, this.option.kook.channelId, JSON.stringify([msg])).then();
+    }
     this.currentPick = '';
     this.scoreUpdated = true;
 
@@ -202,8 +299,8 @@ export class MatchHelper extends LobbyPlugin {
           return;
         }
       }
+      this.rotatePickTeam();
     }
-    this.rotatePickTeam();
   }
 
   private triggerTiebreaker() {
@@ -211,7 +308,6 @@ export class MatchHelper extends LobbyPlugin {
     this.lobby.SendMessage('即将进入TB环节');
     this.SendPluginMessage('changeMap', [this.match.tieBreaker.map.toString()]);
     this.setMod('FM');
-    this.lobby.SendMessage('!mp aborttimer');
     this.lobby.SendMessage(`!mp timer ${this.match.tieBreaker.timer}`);
   }
 
@@ -237,13 +333,13 @@ export class MatchHelper extends LobbyPlugin {
       case '!ban':
         this.processBan(param, player);
         break;
-      case '!unban':
+      case '!noban':
         if (player.isReferee && param.length > 2) {
           param = param.toUpperCase();
           if (this.mapsBanned.has(param)) {
             const team = this.mapsBanned.get(param);
             if (team) {
-              MatchHelper.increment(this.teamBanCount, team, -1);
+              increment(this.teamBanCount, team, -1);
             }
             this.mapsBanned.delete(param);
             this.lobby.SendMessage(`已移除ban ${param}`);
@@ -257,6 +353,14 @@ export class MatchHelper extends LobbyPlugin {
           if (!this.warmup) {
             this.lobby.SendMessage('!mp clearhost');
             this.lobby.SendMessage('!mp set 2 3');
+            this.lobby.SendMessageWithDelayAsync('提示：队长可以用pick/ban指令选图和ban图，如：“pick nm3”, “ban dt1” (不用引号)', 5000).then();
+            const msg = new KookCardMessage();
+            msg.modules.push(new KookModule('header', new KookText('plain-text', '比赛房间信息')));
+            msg.modules.push(new KookModule('divider'));
+            msg.modules.push(new KookModule('section', new KookText('kmarkdown', `房间名称: ${this.lobby.lobbyName}\n[mp链接](https://osu.ppy.sh/community/matches/${this.lobby.lobbyId})`)));
+            if (this.kookClient) {
+              this.kookClient.Api.message.create(10, this.option.kook.channelId, JSON.stringify([msg])).then();
+            }
           }
         }
         break;
@@ -303,7 +407,7 @@ export class MatchHelper extends LobbyPlugin {
               if (Number.isInteger(team) && team < this.match.teams.length) {
                 this.lobby.SendMessage(`!mp timer ${this.match.timer}`);
                 this.currentPickTeam = team;
-                this.lobby.SendMessage(`请队伍 ${this.match.teams[this.currentPickTeam].name} 选手选图`);
+                this.lobby.SendMessage(`请队伍 ${this.match.teams[this.currentPickTeam].name} 队长选图`);
               }
               break;
             case 'score':
@@ -337,9 +441,14 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private processPick(param: string, player: Player) {
-    if (param.length >= 2 && !this.tie) {
+    const leader = this.isLeader(player.name);
+    if (param.length >= 2) {
       param = param.toUpperCase();
-      if (this.getPlayerTeam(player.name) !== this.match.teams[this.currentPickTeam] && !player.isReferee && !this.warmup) {
+      if (!leader && !player.isReferee || (this.tie && !player.isReferee)) {
+        return;
+      }
+
+      if (!this.warmup && leader !== this.match.teams[this.currentPickTeam] && !player.isReferee) {
         this.lobby.SendMessage(`${player.name}: 没轮到你的队伍选图`);
         return;
       }
@@ -376,18 +485,18 @@ export class MatchHelper extends LobbyPlugin {
         return;
       }
 
-      const team = this.getPlayerTeam(player.name);
+      const team = this.isLeader(player.name);
       if (!team && !player.isReferee) {
         return;
       }
 
-      if (team && this.teamBanCount.get(<TeamInfo>team) as number >= this.match.maxBan) {
+      if (team && this.teamBanCount.get(team) as number >= this.match.maxBan) {
         this.lobby.SendMessage(`操作失败: 队伍 ${team?.name} ban已达到上限`);
         return;
       }
 
-      this.mapsBanned.set(map.name, team);
-      MatchHelper.increment(this.teamBanCount, team);
+      this.mapsBanned.set(map.name, team as TeamInfo);
+      increment(this.teamBanCount, team);
       this.lobby.SendMessage(`${!team?.name ? `裁判 ${player.name}` : team?.name} 已ban ${map.name}`);
     }
   }
@@ -396,9 +505,11 @@ export class MatchHelper extends LobbyPlugin {
     if (mod === 'NM') {
       this.lobby.SendMessage('!mp mods NF');
     } else if (this.match.freeMod.includes(mod)) {
+      this.freeMod = true;
       this.lobby.SendMessage('!mp mods FreeMod');
       this.lobby.DeferMessage('本图使用FreeMod，请选手带上NF', 'freeModNotice', 5000, false);
     } else {
+      this.freeMod = false;
       this.lobby.SendMessage(`!mp mods NF ${mod}`);
     }
   }
@@ -421,10 +532,12 @@ export class MatchHelper extends LobbyPlugin {
     param = param.toUpperCase();
     const mod = param.slice(0, 2);
     const id = parseInt(param.substring(2)) - 1;
+
     if (id < 0 || !this.match.maps.has(mod) || (this.match.maps.get(mod) as number[]).length <= id) {
       this.lobby.SendMessage('操作失败:  图不存在');
       return null;
     }
+
     const maps = this.match.maps.get(mod) as number[];
     let map = maps[id];
     if (!map) {
@@ -441,25 +554,42 @@ export class MatchHelper extends LobbyPlugin {
   private getMapMultiplier(param: string): number {
     const mod = param.slice(0, 2);
     if (this.match.customScoreMultipliers.maps.has(param)) {
-      return MatchHelper.getOrDefault(this.match.customScoreMultipliers.maps, param);
+      return getOrDefault(this.match.customScoreMultipliers.maps, param);
     } else {
-      return MatchHelper.getOrDefault(this.match.customScoreMultipliers.maps, mod);
+      return getOrDefault(this.match.customScoreMultipliers.maps, mod);
     }
   }
 
   private rotatePickTeam() {
-    if (this.tie) {
-      return;
-    }
     this.lobby.SendMessage(`!mp timer ${this.match.timer}`);
     this.currentPickTeam = (this.currentPickTeam + 1) % this.match.teams.length;
-    this.lobby.SendMessage(`请队伍 ${this.match.teams[this.currentPickTeam].name} 选手选图`);
+    this.lobby.SendMessage(`请队伍 ${this.match.teams[this.currentPickTeam].name} 队长选图`);
+  }
+
+  private isLeader(player: string): TeamInfo | null {
+    for (const team of this.match.teams) {
+      if (team.leader === player) {
+        return team;
+      }
+    }
+    return null;
   }
 
   private getPlayerTeam(player: string): TeamInfo | null {
     for (const team of this.match.teams) {
       if (team.members.includes(player)) {
         return team;
+      }
+    }
+    return null;
+  }
+
+  private getPlayerSettings(player: string): PlayerSettings | null {
+    if (this.lobby.settingParser.result) {
+      for (const player1 of this.lobby.settingParser.result.players) {
+        if (player1.name === player) {
+          return player1;
+        }
       }
     }
     return null;

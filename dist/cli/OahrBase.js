@@ -70,8 +70,6 @@ class OahrBase {
         });
     }
     async makeLobbyAsync(name) {
-        // Remove all but ascii graphic characters
-        name = name.replace(/[^ -~]/g, '');
         if (!this.isRegistered)
             await this.ensureRegisteredAsync();
         logger.info(`Making a lobby... Name: ${name}`);
