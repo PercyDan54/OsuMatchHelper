@@ -177,7 +177,7 @@ export class MatchHelper extends LobbyPlugin {
       // Freemod custom mod score multiplier
       const playerOptions = this.getPlayerSettings(player.name)?.options ?? '';
       if (this.freeMod) {
-        for (const mod in this.match.customScoreMultipliers.mods.keys()) {
+        for (const mod of this.match.customScoreMultipliers.mods.keys()) {
           if (playerOptions.includes(mod)) {
             const modMultiplier = this.match.customScoreMultipliers.mods.get(mod) as number;
             multiplier *= modMultiplier;
