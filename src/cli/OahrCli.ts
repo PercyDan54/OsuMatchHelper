@@ -54,8 +54,14 @@ export class OahrCli extends OahrBase {
           case 'm':
           case 'make':
             if (l.arg === '') {
-              logger.info('Make command needs a lobby name, e.g., \'make testlobby\'');
-              return;
+              const match = this.matchHelper.match;
+              if (this.matchHelper.option.enabled && match) {
+                l.arg = `${match.name}: (${match.activeTeams[0]}) vs (${match.activeTeams[1]})`;
+              }
+              else {
+                logger.info('Make command needs a lobby name, e.g., \'make testlobby\'');
+                return;
+              }
             }
             try {
               await this.makeLobbyAsync(l.arg);
@@ -180,7 +186,7 @@ export class OahrCli extends OahrBase {
             } else if (l.command.startsWith('!') || l.command.startsWith('*')) {
               this.lobby.RaiseReceivedChatCommand(this.lobby.GetOrMakePlayer(this.client.nick), `${l.command} ${l.arg}`);
             } else {
-              console.log(`Invalid command: ${line}`);
+              this.lobby.SendMessage(`${l.command} ${l.arg}`);
             }
             break;
         }

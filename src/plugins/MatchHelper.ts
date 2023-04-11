@@ -41,19 +41,22 @@ class MatchMapInfo {
 
 class ScoreMultiplierInfo {
   maps: Map<string, number> = new Map<string, number>();
+  mods: Map<string, number> = new Map<string, number>();
   players: Map<string, number> = new Map<string, number>();
 }
 
 class MatchInfo {
-  maps: Map<string, number[]> = new Map<string, number[]>();
+  name: string = '';
   timer: number = 120;
+  rotateOnTimeout: boolean = true;
   bestOf: number = 5;
   maxBan: number = 2;
+  freeMod: string[] = ['FM'];
   tieBreaker: TieBreakerInfo = new TieBreakerInfo();
   customScoreMultipliers: ScoreMultiplierInfo = new ScoreMultiplierInfo();
-  teams: TeamInfo[] = [];
+  maps: Map<string, number[]> = new Map<string, number[]>();
   activeTeams: string[] = [];
-  freeMod: string[] = ['FM'];
+  teams: TeamInfo[] = [];
 }
 
 function getOrDefault(map: Map<any, any>, index: any, _default: any = 1): any {
@@ -114,8 +117,9 @@ export class MatchHelper extends LobbyPlugin {
 
     if (fs.existsSync(config)) {
       const match = JSON.parse(fs.readFileSync(config, 'utf8'));
-      match.customScoreMultipliers.maps = new Map<string, number>(Object.entries(match.customScoreMultipliers['maps']));
-      match.customScoreMultipliers.players = new Map<string, number>(Object.entries(match.customScoreMultipliers['players']));
+      match.customScoreMultipliers.maps = new Map<string, number>(Object.entries(match.customScoreMultipliers.maps));
+      match.customScoreMultipliers.mods = new Map<string, number>(Object.entries(match.customScoreMultipliers.mods));
+      match.customScoreMultipliers.players = new Map<string, number>(Object.entries(match.customScoreMultipliers.players));
       match.maps = new Map<string, number[]>(Object.entries(match['maps']));
       this.pointsToWin = Math.ceil(match.bestOf / 2);
       const teams = new Map<string, TeamInfo>();
@@ -170,11 +174,20 @@ export class MatchHelper extends LobbyPlugin {
       let multiplierText = '';
       multiplierText += `x${multiplier}`;
 
+      // Freemod custom mod score multiplier
       const playerOptions = this.getPlayerSettings(player.name)?.options ?? '';
-      if (this.freeMod && playerOptions.includes('Easy')) {
-        multiplier *= 1.8;
-        multiplierText += ' x1.8';
+      if (this.freeMod) {
+        for (const mod in this.match.customScoreMultipliers.mods.keys()) {
+          if (playerOptions.includes(mod)) {
+            const modMultiplier = this.match.customScoreMultipliers.mods.get(mod) as number;
+            multiplier *= modMultiplier;
+            if (multiplier !== 1) {
+              multiplierText += ` x${modMultiplier}`;
+            }
+          }
+        }
       }
+
       const effectiveScore = Math.round(score * multiplier);
       increment(this.teamScore, team, effectiveScore);
       multiplierText += ` = ${effectiveScore.toLocaleString('en-US')}`;
@@ -232,7 +245,9 @@ export class MatchHelper extends LobbyPlugin {
         case BanchoResponseType.TimerFinished:
           if (this.currentPick === '' && !this.warmup && !this.tie) {
             this.lobby.SendMessage(`计时超时，${this.match.teams[this.currentPickTeam].name} 队无选手选图`);
-            this.rotatePickTeam();
+            if (this.match.rotateOnTimeout) {
+              this.rotatePickTeam();
+            }
           }
           break;
       }
@@ -312,7 +327,7 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private onPlayerChat(message: string, player: Player) {
-    const args = message.split(' ');
+    const args = message.toLowerCase().split(' ');
     if (args.length > 1) {
       switch (args[0]) {
         case 'pick':
@@ -357,7 +372,7 @@ export class MatchHelper extends LobbyPlugin {
             const msg = new KookCardMessage();
             msg.modules.push(new KookModule('header', new KookText('plain-text', '比赛房间信息')));
             msg.modules.push(new KookModule('divider'));
-            msg.modules.push(new KookModule('section', new KookText('kmarkdown', `房间名称: ${this.lobby.lobbyName}\n[mp链接](https://osu.ppy.sh/community/matches/${this.lobby.lobbyId})`)));
+            msg.modules.push(new KookModule('section', new KookText('kmarkdown', `房间名称: ${this.lobby.lobbyName}\n[mp链接](https://osu.ppy.sh/mp/${this.lobby.lobbyId})`)));
             if (this.kookClient) {
               this.kookClient.Api.message.create(10, this.option.kook.channelId, JSON.stringify([msg])).then();
             }
@@ -585,8 +600,9 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private getPlayerSettings(player: string): PlayerSettings | null {
-    if (this.lobby.settingParser.result) {
-      for (const player1 of this.lobby.settingParser.result.players) {
+    const playerSettings = this.lobby.settingParser.result;
+    if (playerSettings) {
+      for (const player1 of playerSettings.players) {
         if (player1.name === player) {
           return player1;
         }

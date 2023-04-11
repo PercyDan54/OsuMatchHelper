@@ -1,6 +1,8 @@
 {
+  "name": "ZKFC",
   "timer": 180,
-  "bestOf": 7,
+  "rotateOnTimeout": false,
+  "bestOf": 11,
   "maxBan": 1,
   "freeMod": [
     "FM",
@@ -8,11 +10,14 @@
   ],
   "tieBreaker": {
     "timer": 180,
-    "map": 2758963
+    "map": 399221
   },
   "customScoreMultipliers": {
     "maps": {
       "EX": 2
+    },
+    "mods": {
+      "Easy": 1.8
     },
     "players": {
       "Kotor1": 0.75,
@@ -42,7 +47,7 @@
       "yukko233": 1.1,
       "Holoo": 1.1,
       "Dr_Shindo": 1.1,
-      "thelastwithlast": 1.1,
+      "banzi_end": 1.1,
       "AlphaZeta": 1.2,
       "winter319": 1.2,
       "nanoic": 1.2,
@@ -51,27 +56,45 @@
   },
   "maps": {
     "NM": [
-      2295079,
-      767924,
-      714528,
-      903820
+      3018490,
+      3418164,
+      3272915,
+      3171555,
+      1534059,
+      3167312
     ],
     "HD": [
-      954995,
-      1257362
+      888008,
+      3760520,
+      3546172
     ],
     "FM": [
-      3437423,
-      3221518,
-      1100763
+      1839479,
+      2200330,
+      1863291
     ],
     "DT": [
-      819448,
-      279166
+      1781048,
+      588869,
+      3283801
     ]
   },
-  "activeTeams":["谈恋爱不如打osu", "五勇士搏斗屙屎恶徒"],
+  "activeTeams":["阳天大小姐想要你告白", "谈恋爱不如打osu"],
   "teams": [
+    {
+      "name": "TestA",
+      "leader": "PercyDan",
+      "members": [
+        "Kotor1"
+      ]
+    },
+    {
+      "name": "TestB",
+      "leader": "Silvet",
+      "members": [
+        "Kotor1"
+      ]
+    },
     {
       "name": "五勇士搏斗屙屎恶徒",
       "leader": "[Lilywhite]",
@@ -90,7 +113,8 @@
         "Ledeau_Fox",
         "Zxian",
         "Dr_Shindo",
-        "thelastwithlast"
+        "banzi_end",
+        "forlusama"
       ]
     },
     {
@@ -132,7 +156,7 @@
       "members": [
         "Eagle_sakura",
         "Kevin0036",
-        "small_pineapple",
+        "Kamiyama Shiki",
         "Niumaokun",
         "flame angel"
       ]

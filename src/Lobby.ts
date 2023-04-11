@@ -431,6 +431,7 @@ export class Lobby {
   private handleMessage(from: string, to: string, message: string): void {
     if (from === 'BanchoBot') {
       this.handleBanchoResponse(message);
+      this.chatlogger.info(`${from}: ${message}`);
     } else {
       const p = this.GetPlayer(from);
       if (p) {
