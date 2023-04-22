@@ -33,10 +33,10 @@ export class OahrBase {
   client: IIrcClient;
   lobby: Lobby;
   selector: AutoHostSelector;
-  starter: MatchStarter;
+  starter: MatchStarter | undefined;
   skipper: HostSkipper;
   terminator: LobbyTerminator;
-  aborter: MatchAborter;
+  aborter: MatchAborter | undefined;
   wordCounter: WordCounter;
   recaster: MapRecaster;
   inoutLogger: InOutLogger;
@@ -53,11 +53,17 @@ export class OahrBase {
   constructor(client: IIrcClient) {
     this.client = client;
     this.lobby = new Lobby(this.client);
+    this.matchHelper = new MatchHelper(this.lobby);
+
+    if (!this.matchHelper.option.enabled) {
+      this.matchHelper = new MatchHelper(this.lobby);
+      this.starter = new MatchStarter(this.lobby);
+      this.aborter = new MatchAborter(this.lobby);
+    }
+
     this.selector = new AutoHostSelector(this.lobby);
-    this.starter = new MatchStarter(this.lobby);
     this.skipper = new HostSkipper(this.lobby);
     this.terminator = new LobbyTerminator(this.lobby);
-    this.aborter = new MatchAborter(this.lobby);
     this.wordCounter = new WordCounter(this.lobby);
     this.inoutLogger = new InOutLogger(this.lobby);
     this.autoTimer = new AutoStartTimer(this.lobby);
@@ -68,7 +74,7 @@ export class OahrBase {
     this.keeper = new LobbyKeeper(this.lobby);
     this.afkkicker = new AfkKicker(this.lobby);
     this.cleaner = new CacheCleaner(this.lobby);
-    this.matchHelper = new MatchHelper(this.lobby);
+
     this.lobby.RaisePluginsLoaded();
   }
 
@@ -101,6 +107,9 @@ export class OahrBase {
     this.lobby.SendMessage(`!mp password ${this.option.password}`);
     for (const p of this.option.invite_users) {
       this.lobby.SendMessage(`!mp invite ${p}`);
+    }
+    if (this.matchHelper.option.enabled) {
+      this.matchHelper.SetRefs();
     }
     logger.info(`Successfully made the lobby. Channel: ${this.lobby.channel}`);
   }

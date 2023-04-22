@@ -4,6 +4,7 @@
   "rotateOnTimeout": false,
   "bestOf": 11,
   "maxBan": 1,
+  "referees": [],
   "freeMod": [
     "FM",
     "EX"

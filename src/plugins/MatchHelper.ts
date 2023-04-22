@@ -51,6 +51,7 @@ class MatchInfo {
   rotateOnTimeout: boolean = true;
   bestOf: number = 5;
   maxBan: number = 2;
+  referees: string[] = [];
   freeMod: string[] = ['FM'];
   tieBreaker: TieBreakerInfo = new TieBreakerInfo();
   customScoreMultipliers: ScoreMultiplierInfo = new ScoreMultiplierInfo();
@@ -383,7 +384,9 @@ export class MatchHelper extends LobbyPlugin {
         if (player.isReferee) {
           for (const team of this.match.teams) {
             for (const player of team.members) {
-              this.lobby.SendMessage(`!mp invite ${player}`);
+              if (!Array.from(this.lobby.players).map(p => p.name).includes(player)) {
+                this.lobby.SendMessage(`!mp invite ${player}`);
+              }
             }
           }
         }
@@ -406,8 +409,13 @@ export class MatchHelper extends LobbyPlugin {
         }
         break;
       case '!reload':
-        if (player.name === 'PercyDan') {
+        if (player.name === this.lobby.ircClient.nick) {
           this.loadMatch();
+        }
+        break;
+      case '!setrefs':
+        if (player.isReferee || this.match.referees.includes(player.name)) {
+          this.SetRefs();
         }
         break;
       case '!set':
@@ -452,6 +460,14 @@ export class MatchHelper extends LobbyPlugin {
           }
         }
         break;
+    }
+  }
+
+  SetRefs() {
+    for (const player of this.match.referees) {
+      if (!this.lobby.GetPlayer(player)?.isReferee) {
+        this.lobby.SendMessage(`!mp addref ${player}`);
+      }
     }
   }
 
