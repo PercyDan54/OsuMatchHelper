@@ -76,6 +76,17 @@ function increment(map: Map<any, number>, index: any, amount: number = 1) {
   }
 }
 
+function parseMapId(input: string): [string, number | undefined] {
+  const match = input.match(/(\D+)(\d+)?/);
+  if (match === null) {
+    return [input, undefined];
+  }
+  const [, mod, numString] = match;
+  const num = !numString ? parseInt(numString) : undefined;
+  return [mod, num];
+}
+
+
 export class MatchHelper extends LobbyPlugin {
   option: MatchHelperOption;
   match: MatchInfo = new MatchInfo();
@@ -110,6 +121,14 @@ export class MatchHelper extends LobbyPlugin {
     this.loadMatch();
     if (this.option.enabled) {
       this.registerEvents();
+    }
+  }
+
+  SetRefs() {
+    for (const player of this.match.referees) {
+      if (!this.lobby.GetPlayer(player)?.isReferee) {
+        this.lobby.SendMessage(`!mp addref ${player}`);
+      }
     }
   }
 
@@ -350,7 +369,7 @@ export class MatchHelper extends LobbyPlugin {
         this.processBan(param, player);
         break;
       case '!noban':
-        if (player.isReferee && param.length > 2) {
+        if (player.isReferee) {
           param = param.toUpperCase();
           if (this.mapsBanned.has(param)) {
             const team = this.mapsBanned.get(param);
@@ -382,9 +401,10 @@ export class MatchHelper extends LobbyPlugin {
         break;
       case '!inviteall':
         if (player.isReferee) {
+          const lobbyPlayers = Array.from(this.lobby.players).map(p => p.name);
           for (const team of this.match.teams) {
             for (const player of team.members) {
-              if (!Array.from(this.lobby.players).map(p => p.name).includes(player)) {
+              if (!lobbyPlayers.includes(player)) {
                 this.lobby.SendMessage(`!mp invite ${player}`);
               }
             }
@@ -463,55 +483,41 @@ export class MatchHelper extends LobbyPlugin {
     }
   }
 
-  SetRefs() {
-    for (const player of this.match.referees) {
-      if (!this.lobby.GetPlayer(player)?.isReferee) {
-        this.lobby.SendMessage(`!mp addref ${player}`);
-      }
-    }
-  }
-
   private processPick(param: string, player: Player) {
     const leader = this.isLeader(player.name);
-    if (param.length >= 2) {
-      param = param.toUpperCase();
-      if (!leader && !player.isReferee || (this.tie && !player.isReferee)) {
-        return;
-      }
 
-      if (!this.warmup && leader !== this.match.teams[this.currentPickTeam] && !player.isReferee) {
-        this.lobby.SendMessage(`${player.name}: 没轮到你的队伍选图`);
-        return;
-      }
-
-      const mod = param.slice(0, 2);
-      const map = this.getMap(param);
-      if (!map) {
-        return;
-      }
-
-      if (Array.from(this.mapsBanned.keys()).includes(map.name)) {
-        this.lobby.SendMessage('操作失败: 此图已被ban');
-        return;
-      }
-      if (this.mapsChosen.includes(map.name) && !player.isReferee) {
-        this.lobby.SendMessage('操作失败: 此图已经被选过');
-        return;
-      }
-
-      try {
-        this.SendPluginMessage('changeMap', [map.id.toString()]);
-        this.setMod(mod);
-        this.currentPick = map.name;
-      } catch {
-        this.lobby.SendMessage('Error: 未知错误，图可能不存在');
-      }
+    param = param.toUpperCase();
+    if (!leader && !player.isReferee || (this.tie && !player.isReferee)) {
+      return;
+    }
+    if (!this.warmup && leader !== this.match.teams[this.currentPickTeam] && !player.isReferee) {
+      this.lobby.SendMessage(`${player.name}: 没轮到你的队伍选图`);
+      return;
+    }
+    const map = this.getMap(param);
+    if (!map) {
+      return;
+    }
+    if (Array.from(this.mapsBanned.keys()).includes(map.name)) {
+      this.lobby.SendMessage('操作失败: 此图已被ban');
+      return;
+    }
+    if (this.mapsChosen.includes(map.name) && !player.isReferee) {
+      this.lobby.SendMessage('操作失败: 此图已经被选过');
+      return;
+    }
+    try {
+      this.SendPluginMessage('changeMap', [map.id.toString()]);
+      this.setMod(parseMapId(map.name)[0]);
+      this.currentPick = map.name;
+    } catch {
+      this.lobby.SendMessage('Error: 未知错误，图可能不存在');
     }
   }
 
   private processBan(param: string, player: Player) {
     const map = this.getMap(param);
-    if (param.length > 2 && map) {
+    if (map) {
       if (this.mapsBanned.has(map.name)) {
         return;
       }
@@ -532,16 +538,20 @@ export class MatchHelper extends LobbyPlugin {
     }
   }
 
-  private setMod(mod: string) {
-    if (mod === 'NM') {
+  private setMod(mods: string) {
+    if (mods === 'NM') {
       this.lobby.SendMessage('!mp mods NF');
-    } else if (this.match.freeMod.includes(mod)) {
+    } else if (this.match.freeMod.includes(mods)) {
       this.freeMod = true;
       this.lobby.SendMessage('!mp mods FreeMod');
-      this.lobby.DeferMessage('本图使用FreeMod，请选手带上NF', 'freeModNotice', 5000, false);
+      this.lobby.SendMessageWithCoolTime('本图使用FreeMod，请选手带上NF', 'freeModNotice', 5000);
     } else {
       this.freeMod = false;
-      this.lobby.SendMessage(`!mp mods NF ${mod}`);
+      let modString = '';
+      for (let i = 0; i < mods.length; i += 2) {
+        modString += mods.slice(i, i + 2) + ' ';
+      }
+      this.lobby.SendMessage(`!mp mods NF ${modString.trim()}`);
     }
   }
 
@@ -554,6 +564,7 @@ export class MatchHelper extends LobbyPlugin {
 
   private resetMatchScore() {
     this.tie = false;
+    this.matchScore.clear();
     for (const team of this.match.teams) {
       this.matchScore.set(team, 0);
     }
@@ -561,8 +572,13 @@ export class MatchHelper extends LobbyPlugin {
 
   private getMap(param: string): MatchMapInfo | null {
     param = param.toUpperCase();
-    const mod = param.slice(0, 2);
-    const id = parseInt(param.substring(2)) - 1;
+    const split = parseMapId(param);
+    const mod = split[0];
+    if (!split[1]) {
+      split[1] = 1;
+      param += '1';
+    }
+    const id = split[1] - 1;
 
     if (id < 0 || !this.match.maps.has(mod) || (this.match.maps.get(mod) as number[]).length <= id) {
       this.lobby.SendMessage('操作失败:  图不存在');
@@ -572,18 +588,13 @@ export class MatchHelper extends LobbyPlugin {
     const maps = this.match.maps.get(mod) as number[];
     let map = maps[id];
     if (!map) {
-      param += '1';
-      map = maps[0];
-      if (!map || maps.length > 1) {
-        this.lobby.SendMessage('操作失败:  图不存在');
-        return null;
-      }
+      return null;
     }
     return new MatchMapInfo(map, param);
   }
 
   private getMapMultiplier(param: string): number {
-    const mod = param.slice(0, 2);
+    const mod = parseMapId(param)[0];
     if (this.match.customScoreMultipliers.maps.has(param)) {
       return getOrDefault(this.match.customScoreMultipliers.maps, param);
     } else {
