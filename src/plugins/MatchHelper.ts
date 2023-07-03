@@ -8,6 +8,7 @@ import path from 'path';
 import { BaseClient } from 'kookts';
 import { KookCardMessage, KookModule, KookText, Paragraph } from '../kook/KookMessage';
 import { PlayerSettings } from '../parsers/MpSettingsParser';
+import { checkCompatible, id, name } from '../libs/modUtils';
 
 export interface MatchHelperOption {
   enabled: boolean;
@@ -52,7 +53,8 @@ class MatchInfo {
   bestOf: number = 5;
   maxBan: number = 2;
   referees: string[] = [];
-  freeMod: string[] = ['FM'];
+  defaultMod: string = 'NF';
+  customMods: Map<string, string> = new Map<string, string>();
   tieBreaker: TieBreakerInfo = new TieBreakerInfo();
   customScoreMultipliers: ScoreMultiplierInfo = new ScoreMultiplierInfo();
   maps: Map<string, number[]> = new Map<string, number[]>();
@@ -85,7 +87,6 @@ function parseMapId(input: string): [string, number | undefined] {
   const num = !numString ? parseInt(numString) : undefined;
   return [mod, num];
 }
-
 
 export class MatchHelper extends LobbyPlugin {
   option: MatchHelperOption;
@@ -137,6 +138,7 @@ export class MatchHelper extends LobbyPlugin {
 
     if (fs.existsSync(config)) {
       const match = JSON.parse(fs.readFileSync(config, 'utf8'));
+      match.customMods = new Map<string, string>(Object.entries(match.customMods));
       match.customScoreMultipliers.maps = new Map<string, number>(Object.entries(match.customScoreMultipliers.maps));
       match.customScoreMultipliers.mods = new Map<string, number>(Object.entries(match.customScoreMultipliers.mods));
       match.customScoreMultipliers.players = new Map<string, number>(Object.entries(match.customScoreMultipliers.players));
@@ -181,7 +183,7 @@ export class MatchHelper extends LobbyPlugin {
   private registerEvents(): void {
     this.lobby.ReceivedChatCommand.on(a => this.onReceivedChatCommand(a.command, a.param, a.player));
     this.lobby.PlayerChated.on(a => this.onPlayerChat(a.message, a.player));
-    this.lobby.PlayerFinished.on(({player, score}) => {
+    this.lobby.PlayerFinished.on(({player, score, isPassed}) => {
       if (this.warmup)
         return;
 
@@ -189,6 +191,9 @@ export class MatchHelper extends LobbyPlugin {
       if (!team) {
         return;
       }
+      this.finishedPlayers++;
+      if (!isPassed)
+        return;
 
       let multiplier = getOrDefault(this.match.customScoreMultipliers.players, player.name);
       let multiplierText = '';
@@ -211,7 +216,6 @@ export class MatchHelper extends LobbyPlugin {
       const effectiveScore = Math.round(score * multiplier);
       increment(this.teamScore, team, effectiveScore);
       multiplierText += ` = ${effectiveScore.toLocaleString('en-US')}`;
-      this.finishedPlayers++;
 
       const playerScoreText = `${score.toLocaleString('en-US')} ${multiplierText}`;
       this.logger.info(`${player.name}: ${playerScoreText} (${this.finishedPlayers} / ${this.startedPlayers})`);
@@ -539,20 +543,25 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private setMod(mods: string) {
-    if (mods === 'NM') {
-      this.lobby.SendMessage('!mp mods NF');
-    } else if (this.match.freeMod.includes(mods)) {
-      this.freeMod = true;
-      this.lobby.SendMessage('!mp mods FreeMod');
-      this.lobby.SendMessageWithCoolTime('本图使用FreeMod，请选手带上NF', 'freeModNotice', 5000);
-    } else {
-      this.freeMod = false;
-      let modString = '';
-      for (let i = 0; i < mods.length; i += 2) {
-        modString += mods.slice(i, i + 2) + ' ';
+    for (const s of this.match.customMods.entries()) {
+      if (s[1] === 'FreeMod' && mods.includes(s[0])) {
+        this.freeMod = true;
+        this.lobby.SendMessage('!mp mods FreeMod');
+        return;
       }
-      this.lobby.SendMessage(`!mp mods NF ${modString.trim()}`);
+      mods = mods.replace(s[0], s[1]);
     }
+    const defaultId = id(this.match.defaultMod);
+    let modNumber = id(mods);
+    modNumber &= ~defaultId;
+    const compat = checkCompatible(modNumber | defaultId, modNumber);
+    const compatibleModsString = compat === 0 ? this.match.defaultMod : name(compat);
+    let modString = '';
+    for (let i = 0; i < compatibleModsString.length; i += 2) {
+      modString += `${compatibleModsString.slice(i, i + 2)} `;
+    }
+    modString = modString.replace('RX', 'Relax');
+    this.lobby.SendMessage(`!mp mods ${modString}`);
   }
 
   private resetPick() {
@@ -586,7 +595,7 @@ export class MatchHelper extends LobbyPlugin {
     }
 
     const maps = this.match.maps.get(mod) as number[];
-    let map = maps[id];
+    const map = maps[id];
     if (!map) {
       return null;
     }

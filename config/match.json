@@ -5,10 +5,11 @@
   "bestOf": 11,
   "maxBan": 1,
   "referees": [],
-  "freeMod": [
-    "FM",
-    "EX"
-  ],
+  "defaultMod": "NF",
+  "customMods": {
+    "NM": "",
+    "FM": "FreeMod"
+  },
   "tieBreaker": {
     "timer": 180,
     "map": 399221
