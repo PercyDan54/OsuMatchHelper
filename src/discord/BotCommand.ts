@@ -11,7 +11,7 @@ export const BotCommands: ApplicationCommandData[] = [
         type: 3,
         name: 'lobby_name',
         description: 'The initial lobby name that\'ll be set, e.g., "4.00-5.99 auto host rotation"',
-        required: true
+        required: false
       }
     ]
   },

@@ -44,7 +44,7 @@ export class OahrBase {
   history: HistoryLoader;
   checker: MapChecker;
   keeper: LobbyKeeper;
-  afkkicker: AfkKicker;
+  afkkicker: AfkKicker | undefined;
   miscLoader: MiscLoader;
   cleaner: CacheCleaner;
   matchHelper: MatchHelper;
@@ -59,6 +59,7 @@ export class OahrBase {
       this.matchHelper = new MatchHelper(this.lobby);
       this.starter = new MatchStarter(this.lobby);
       this.aborter = new MatchAborter(this.lobby);
+      this.afkkicker = new AfkKicker(this.lobby);
     }
 
     this.selector = new AutoHostSelector(this.lobby);
@@ -72,7 +73,6 @@ export class OahrBase {
     this.miscLoader = new MiscLoader(this.lobby);
     this.checker = new MapChecker(this.lobby);
     this.keeper = new LobbyKeeper(this.lobby);
-    this.afkkicker = new AfkKicker(this.lobby);
     this.cleaner = new CacheCleaner(this.lobby);
 
     this.lobby.RaisePluginsLoaded();
@@ -102,6 +102,16 @@ export class OahrBase {
 
   async makeLobbyAsync(name: string): Promise<void> {
     if (!this.isRegistered) await this.ensureRegisteredAsync();
+    if (name === '') {
+      const match = this.matchHelper.match;
+      if (this.matchHelper.option.enabled && match) {
+        name = `${match.name}: (${match.activeTeams[0]}) vs (${match.activeTeams[1]})`;
+      }
+      else {
+        logger.info('Make command needs a lobby name, e.g., \'make testlobby\'');
+        return;
+      }
+    }
     logger.info(`Making a lobby... Name: ${name}`);
     await this.lobby.MakeLobbyAsync(name);
     this.lobby.SendMessage(`!mp password ${this.option.password}`);

@@ -1,188 +1,114 @@
 {
-  "name": "ZKFC",
-  "timer": 180,
+  "name": "JLC",
+  "timer": 120,
   "rotateOnTimeout": false,
-  "bestOf": 11,
+  "bestOf": 9,
   "maxBan": 1,
   "referees": [],
   "defaultMod": "NF",
   "customMods": {
     "NM": "",
+    "DD": "FreeMod",
     "FM": "FreeMod"
   },
   "tieBreaker": {
-    "timer": 180,
-    "map": 399221
+    "timer": 120,
+    "map": 2633754
   },
   "customScoreMultipliers": {
     "maps": {
       "EX": 2
     },
     "mods": {
-      "Easy": 1.8
+      "Easy": 3,
+      "Flashlight": 9
     },
+    "teams": {},
     "players": {
-      "Kotor1": 0.75,
-      "AccMoment": 0.75,
-      "Ledeau_Fox": 0.75,
-      "lolol727": 0.75,
-      "Kanekiru": 0.8,
-      "Arietta-": 0.8,
-      "Eagle_sakura": 0.8,
-      "YoungTian": 0.8,
-      "YRScarlet": 0.8,
-      "KuroJa": 0.8,
-      "USAIKO": 0.8,
-      "Kieost": 0.8,
-      "Kevin0036": 0.8,
-      "flame angel": 0.8,
-      "Zxian": 0.85,
-      "sky_cosmos": 0.85,
-      "akuya": 0.85,
-      "tangkeke71": 0.9,
-      "MizukiQwQ": 0.9,
-      "LimeSeptum": 0.9,
-      "Suzuki39": 0.9,
-      "small_pineapple": 0.9,
-      "maduang": 0.9,
-      "wangong": 1.1,
-      "yukko233": 1.1,
-      "Holoo": 1.1,
-      "Dr_Shindo": 1.1,
-      "banzi_end": 1.1,
-      "AlphaZeta": 1.2,
-      "winter319": 1.2,
-      "nanoic": 1.2,
-      "forlusama": 1.2
+      "AbbeyChan6203": 0.85,
+      "Chino-": 0.8
     }
   },
   "maps": {
     "NM": [
-      3018490,
-      3418164,
-      3272915,
-      3171555,
-      1534059,
-      3167312
+      3717503,
+      537235,
+      2887659,
+      2044890
     ],
     "HD": [
-      888008,
-      3760520,
-      3546172
+      3675774,
+      3395011
     ],
-    "FM": [
-      1839479,
-      2200330,
-      1863291
+    "HR": [
+      507728,
+      405955
     ],
     "DT": [
-      1781048,
-      588869,
-      3283801
+      1707593,
+      571925
+    ],
+	"NC": [
+      3491159
+    ],
+	"EZ": [
+      292575
+    ],
+    "DD": [
+      1962676,
+      1712589
     ]
   },
-  "activeTeams":["阳天大小姐想要你告白", "谈恋爱不如打osu"],
+  "activeTeams":["TestA", "TestB"],
   "teams": [
     {
       "name": "TestA",
-      "leader": "PercyDan",
+      "leader": "-xxx Rumia-",
       "members": [
-        "Kotor1"
+        "PercyDan"
       ]
     },
     {
       "name": "TestB",
-      "leader": "Silvet",
+      "leader": "-Melissa-",
       "members": [
         "Kotor1"
       ]
     },
     {
-      "name": "五勇士搏斗屙屎恶徒",
-      "leader": "[Lilywhite]",
+      "name": "有丶神奇",
+      "leader": "Ahshi",
       "members": [
-        "Kotor1",
-        "Pain boy",
-        "wangong",
-        "xiaokeDDJ",
-        "cross_along"
+        "nnEMz",
+        "MrsavageY",
+        "USAIKO"
       ]
     },
     {
-      "name": "谈恋爱不如打osu",
-      "leader": "Kieost",
+      "name": "孩子别怕，我来用原神救你",
+      "leader": "AbbeyChan6203",
       "members": [
-        "Ledeau_Fox",
-        "Zxian",
-        "Dr_Shindo",
-        "banzi_end",
-        "forlusama"
+        "ShandenOnter ",
+        "TwinIslandMilk",
+        "[ NekuRo ]"
       ]
     },
     {
-      "name": "任何邪恶终将绳之以法",
-      "leader": "maduang",
+      "name": "chino妙妙屋",
+      "leader": "Chino-",
       "members": [
-        "AccMoment",
-        "tangkeke71",
-        "MizukiQwQ",
-        "A1MERCet",
-        "TomCh"
+        "YoungTian",
+        "SnowMagicK",
+        "Senbe1"
       ]
     },
     {
-      "name": "感觉不如华莱士",
-      "leader": "Kanekiru",
-      "members": [
-        "Lzq12345",
-        "Lunequin",
-        "yukko233",
-        "winter319",
-        "nanoic"
-      ]
-    },
-    {
-      "name": "有空想个队名",
-      "leader": "YRScarlet",
-      "members": [
-        "Arietta-",
-        "HA007",
-        "AlphaZeta",
-        "Holoo",
-        "lolol727"
-      ]
-    },
-    {
-      "name": "阳天大小姐想要你告白",
-      "leader": "YoungTian",
+      "name": "谁的世界",
+      "leader": "SBPL",
       "members": [
         "Eagle_sakura",
-        "Kevin0036",
-        "Kamiyama Shiki",
-        "Niumaokun",
-        "flame angel"
-      ]
-    },
-    {
-      "name": "原神怎么你了",
-      "leader": "akuya",
-      "members": [
-        "KuroJa",
-        "sky_cosmos",
-        "cirnosaikyo",
-        "Aokreti",
-        "lzayoi_sakuya9"
-      ]
-    },
-    {
-      "name": "流汗.jpg",
-      "leader": "LimeSeptum",
-      "members": [
-        "USAIKO",
-        "Suzuki39",
-        "mononeko_",
-        "sion22",
-        "Azuki kun"
+        "9898",
+        "qianli1611"
       ]
     }
   ]

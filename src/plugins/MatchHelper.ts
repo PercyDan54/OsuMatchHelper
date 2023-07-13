@@ -43,6 +43,7 @@ class MatchMapInfo {
 class ScoreMultiplierInfo {
   maps: Map<string, number> = new Map<string, number>();
   mods: Map<string, number> = new Map<string, number>();
+  teams: Map<string, number> = new Map<string, number>();
   players: Map<string, number> = new Map<string, number>();
 }
 
@@ -84,7 +85,7 @@ function parseMapId(input: string): [string, number | undefined] {
     return [input, undefined];
   }
   const [, mod, numString] = match;
-  const num = !numString ? parseInt(numString) : undefined;
+  const num = numString ? parseInt(numString) : undefined;
   return [mod, num];
 }
 
@@ -141,6 +142,7 @@ export class MatchHelper extends LobbyPlugin {
       match.customMods = new Map<string, string>(Object.entries(match.customMods));
       match.customScoreMultipliers.maps = new Map<string, number>(Object.entries(match.customScoreMultipliers.maps));
       match.customScoreMultipliers.mods = new Map<string, number>(Object.entries(match.customScoreMultipliers.mods));
+      match.customScoreMultipliers.teams = new Map<string, number>(Object.entries(match.customScoreMultipliers.teams));
       match.customScoreMultipliers.players = new Map<string, number>(Object.entries(match.customScoreMultipliers.players));
       match.maps = new Map<string, number[]>(Object.entries(match['maps']));
       this.pointsToWin = Math.ceil(match.bestOf / 2);
@@ -197,7 +199,14 @@ export class MatchHelper extends LobbyPlugin {
 
       let multiplier = getOrDefault(this.match.customScoreMultipliers.players, player.name);
       let multiplierText = '';
-      multiplierText += `x${multiplier}`;
+      if (multiplier !== 1) {
+        multiplierText += `x${multiplier}`;
+      }
+      const teamMultiplier = getOrDefault(this.match.customScoreMultipliers.teams, this.getPlayerTeam(player.name)?.name);
+      multiplier *= teamMultiplier;
+      if (teamMultiplier !== 1) {
+        multiplierText += ` x${teamMultiplier}`;
+      }
 
       // Freemod custom mod score multiplier
       const playerOptions = this.getPlayerSettings(player.name)?.options ?? '';
@@ -538,7 +547,7 @@ export class MatchHelper extends LobbyPlugin {
 
       this.mapsBanned.set(map.name, team as TeamInfo);
       increment(this.teamBanCount, team);
-      this.lobby.SendMessage(`${!team?.name ? `裁判 ${player.name}` : team?.name} 已ban ${map.name}`);
+      this.lobby.SendMessage(`${team?.name ? team?.name : `裁判 ${player.name}`} 已ban ${map.name}`);
     }
   }
 

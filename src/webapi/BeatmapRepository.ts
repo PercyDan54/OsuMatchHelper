@@ -42,7 +42,7 @@ class BeatmapRepositoryClass {
     if (cache) return cache;
 
     const set = await this.fetcher.getBeatmapset(mapId);
-    if (set.availability.download_disabled || set.availability.more_information) {
+    if (set.availability.download_disabled) {
       throw new FetchBeatmapError(FetchBeatmapErrorReason.NotAvailable);
     }
     this.cacheMaps(set);

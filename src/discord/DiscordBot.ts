@@ -147,7 +147,7 @@ export class DiscordBot {
       return;
     }
 
-    const name = interaction.options.getString('lobby_name', true);
+    const name = interaction.options.getString('lobby_name', false) ?? '';
     let ahr;
 
     try {
