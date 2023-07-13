@@ -224,7 +224,9 @@ export class MatchHelper extends LobbyPlugin {
 
       const effectiveScore = Math.round(score * multiplier);
       increment(this.teamScore, team, effectiveScore);
-      multiplierText += ` = ${effectiveScore.toLocaleString('en-US')}`;
+      if (multiplier !== 1) {
+        multiplierText += ` = ${effectiveScore.toLocaleString('en-US')}`;
+      }
 
       const playerScoreText = `${score.toLocaleString('en-US')} ${multiplierText}`;
       this.logger.info(`${player.name}: ${playerScoreText} (${this.finishedPlayers} / ${this.startedPlayers})`);
