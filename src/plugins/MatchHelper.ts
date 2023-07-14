@@ -61,6 +61,7 @@ class MatchInfo {
   maps: Map<string, number[]> = new Map<string, number[]>();
   activeTeams: string[] = [];
   teams: TeamInfo[] = [];
+  allTeams: TeamInfo[] = [];
 }
 
 function getOrDefault(map: Map<any, any>, index: any, _default: any = 1): any {
@@ -146,9 +147,10 @@ export class MatchHelper extends LobbyPlugin {
       match.customScoreMultipliers.players = new Map<string, number>(Object.entries(match.customScoreMultipliers.players));
       match.maps = new Map<string, number[]>(Object.entries(match['maps']));
       this.pointsToWin = Math.ceil(match.bestOf / 2);
-      const teams = new Map<string, TeamInfo>();
+      match.allTeams = match.teams;
+      this.match = match;
 
-      for (const team of match.teams) {
+      for (const team of this.match.allTeams) {
         if (!team.leader) {
           team.leader = team.members[0];
         } else {
@@ -158,20 +160,8 @@ export class MatchHelper extends LobbyPlugin {
         if (team.members.length === 1) {
           team.name = team.members[0];
         }
-        teams.set(team.name, team);
       }
-      this.match = match;
-
-      this.match.teams = [];
-      for (const t of match.activeTeams) {
-        if (teams.has(t)) {
-          this.match.teams.push(teams.get(t) as TeamInfo);
-        } else {
-          this.logger.warn(`Team ${t} not found`);
-        }
-      }
-
-      this.resetMatchScore();
+      this.loadTeams();
       this.logger.info('Loaded match config');
     } else {
       this.logger.error('Match config does not exist');
@@ -180,6 +170,25 @@ export class MatchHelper extends LobbyPlugin {
     if (this.kookClient) {
       this.kookClient.connect();
     }
+  }
+
+  private loadTeams() {
+    const teams = new Map<string, TeamInfo>();
+
+    for (const team of this.match.allTeams) {
+      teams.set(team.name, team);
+    }
+
+    this.match.teams = [];
+    for (const t of this.match.activeTeams) {
+      if (teams.has(t)) {
+        this.match.teams.push(teams.get(t) as TeamInfo);
+      } else {
+        this.logger.warn(`Team ${t} not found`);
+      }
+    }
+    this.resetMatchScore();
+    this.lobby.SendMessage(`Teams: ${this.match.teams[0].name}, ${this.match.teams[1].name}`);
   }
 
   private registerEvents(): void {
@@ -417,13 +426,15 @@ export class MatchHelper extends LobbyPlugin {
       case '!inviteall':
         if (player.isReferee) {
           const lobbyPlayers = Array.from(this.lobby.players).map(p => p.name);
+          const msg = [];
           for (const team of this.match.teams) {
             for (const player of team.members) {
               if (!lobbyPlayers.includes(player)) {
-                this.lobby.SendMessage(`!mp invite ${player}`);
+                msg.push(`!mp invite ${player}`);
               }
             }
           }
+          this.lobby.SendMultilineMessageWithInterval(msg, 3000, 'invite', 0).then();
         }
         break;
       case '!reset':
@@ -481,6 +492,14 @@ export class MatchHelper extends LobbyPlugin {
                   this.matchScore.set(teams[i], scores[i]);
                 }
               }
+              break;
+            case 'teams':
+              if (args.length < 3) {
+                return;
+              }
+              this.match.activeTeams = [args[1], args[2]];
+              this.loadTeams();
+              break;
           }
         }
         break;

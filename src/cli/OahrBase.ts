@@ -56,7 +56,6 @@ export class OahrBase {
     this.matchHelper = new MatchHelper(this.lobby);
 
     if (!this.matchHelper.option.enabled) {
-      this.matchHelper = new MatchHelper(this.lobby);
       this.starter = new MatchStarter(this.lobby);
       this.aborter = new MatchAborter(this.lobby);
       this.afkkicker = new AfkKicker(this.lobby);
