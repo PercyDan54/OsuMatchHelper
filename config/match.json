@@ -1,114 +1,318 @@
 {
-  "name": "JLC",
+  "name": "ZKFC S2",
   "timer": 120,
   "rotateOnTimeout": false,
-  "bestOf": 9,
-  "maxBan": 1,
-  "referees": [],
+  "bestOf": 13,
+  "maxBan": 2,
+  "teamSize": 3,
+  "referees": ["BurgerKing"],
   "defaultMod": "NF",
   "customMods": {
     "NM": "",
-    "DD": "FreeMod",
     "FM": "FreeMod"
   },
   "tieBreaker": {
     "timer": 120,
-    "map": 2633754
+    "map": 646609
   },
   "customScoreMultipliers": {
     "maps": {
-      "EX": 2
+      "NM1": 100,
+      "NM2": 60,
+      "NM3": 55,
+      "NM4": 30,
+      "NM5": 40,
+      "NM6": 65,
+      "HD1": 40,
+      "HD2": 30,
+      "HD3": 40,
+      "HR1": 50,
+      "HR2": 75,
+      "HR3": 35,
+      "DT1": 120,
+      "DT2": 50,
+      "DT3": 100,
+      "DT4": 65,
+      "FM1": 75,
+      "FM2": 45,
+      "FM3": 50,
+      "FM4": 65,
+      "TB": 75
     },
     "mods": {
-      "Easy": 3,
-      "Flashlight": 9
+      "Easy": 1.8
+    },
+    "mapRolls": {
+      "NM1": 100,
+      "NM2": 70,
+      "NM3": 65,
+      "NM": 45,
+      "NM6": 55,
+      "HD1": 55,
+      "HD2": 40,
+      "HD3": 50,
+      "HR1": 75,
+      "HR2": 60,
+      "HR3": 45,
+      "DT1": 120,
+      "DT2": 60,
+      "DT3": 75,
+      "DT4": 60,
+      "FM1": 100,
+      "FM2": 65,
+      "FM3": 50,
+      "FM4": 50,
+      "TB": 125
     },
     "teams": {},
-    "players": {
-      "AbbeyChan6203": 0.85,
-      "Chino-": 0.8
-    }
+    "players": {}
   },
   "maps": {
     "NM": [
-      3717503,
-      537235,
-      2887659,
-      2044890
+      3017567,
+      4286572,
+      4036759,
+      3291796,
+      3390428,
+      2275958
     ],
     "HD": [
-      3675774,
-      3395011
+      3685433,
+      3607058,
+      3495349
     ],
     "HR": [
-      507728,
-      405955
+      1149934,
+      1661048,
+      2857598
     ],
     "DT": [
-      1707593,
-      571925
+      3180611,
+      3679274,
+      2186072,
+      2824364
     ],
-    "NC": [
-      3491159
-    ],
-    "EZ": [
-      292575
-    ],
-    "DD": [
-      1962676,
-      1712589
+    "FM": [
+      2279105,
+      2705255,
+      3740403,
+      3493603
     ]
   },
-  "activeTeams":["TestA", "TestB"],
+  "activeTeams":["工作有没有认真做 工资涨没涨", "reading god"],
   "teams": [
     {
       "name": "TestA",
-      "leader": "-xxx Rumia-",
+      "leader": "PercyDan",
       "members": [
-        "PercyDan"
+        {
+          "name": "a",
+          "id": 233
+        }
       ]
     },
     {
-      "name": "TestB",
-      "leader": "-Melissa-",
+      "name": "reading god",
+      "leader": {
+        "name": "Makemake",
+        "id": 4284817
+      },
       "members": [
-        "Kotor1"
+        {
+          "name": "[Lilywhite]",
+          "id": 13189999
+        },
+        {
+          "name": "Pain boy",
+          "id": 24579916
+        },
+        {
+          "name": "Hoshizora_3",
+          "id": 14509964
+        },
+        {
+          "name": "Alymetic",
+          "id": 19287762
+        }
       ]
     },
     {
-      "name": "有丶神奇",
-      "leader": "Ahshi",
+      "name": "谈恋爱不如打osu",
+      "leader": {
+        "name": "FlyingZxian",
+        "id": 20672564
+      },
       "members": [
-        "nnEMz",
-        "MrsavageY",
-        "USAIKO"
+        {
+          "name": "Dr_Shindo",
+          "id": 30895664
+        },
+        {
+          "name": "Elegy_Arcus",
+          "id": 29518853
+        },
+        {
+          "name": "Niumaokun",
+          "id": 16227180
+        },
+        {
+          "name": "Kieost",
+          "id": 17823832
+        }
       ]
     },
     {
-      "name": "孩子别怕，我来用原神救你",
-      "leader": "AbbeyChan6203",
+      "name": "想上彤彤高中",
+      "leader": {
+        "name": "AsakaUshio",
+        "id": 33128499
+      },
       "members": [
-        "ShandenOnter ",
-        "TwinIslandMilk",
-        "[ NekuRo ]"
+        {
+          "name": "Fyu_Neru",
+          "id": 6699436
+        },
+        {
+          "name": "Douyazi",
+          "id": 13859320
+        },
+        {
+          "name": "AsianBanter",
+          "id": 10223577
+        },
+        {
+          "name": "NaimuTongzi",
+          "id": 8883892
+        }
       ]
     },
     {
-      "name": "chino妙妙屋",
-      "leader": "Chino-",
+      "name": "罚你当猫猫",
+      "leader": {
+        "name": "yukko233",
+        "id": 28804123
+      },
       "members": [
-        "YoungTian",
-        "SnowMagicK",
-        "Senbe1"
+        {
+          "name": "Lzq12345",
+          "id": 15012640
+        },
+        {
+          "name": "Naaahida",
+          "id": 30314890
+        },
+        {
+          "name": "Hanarokushou",
+          "id": 17360184
+        },
+        {
+          "name": "Lunequin",
+          "id": 19367494
+        }
       ]
     },
     {
-      "name": "谁的世界",
-      "leader": "SBPL",
+      "name": "吵什么吵不知道我在玩HDDT吗",
+      "leader": {
+        "name": "suzuka1",
+        "id": 29785618
+      },
       "members": [
-        "Eagle_sakura",
-        "9898",
-        "qianli1611"
+        {
+          "name": "eric1388",
+          "id": 20384257
+        },
+        {
+          "name": "ShandenTeio",
+          "id": 25776202
+        },
+        {
+          "name": "Omutatsu",
+          "id": 20728243
+        },
+        {
+          "name": "Shiratori",
+          "id": 6263426
+        }
+      ]
+    },
+    {
+      "name": "我的osu物语果然有问题",
+      "leader": {
+        "name": "Celia-Claire",
+        "id": 12790121
+      },
+      "members": [
+        {
+          "name": "Grapefruit111",
+          "id": 16416029
+        },
+        {
+          "name": "magic__sunny",
+          "id": 13323610
+        },
+        {
+          "name": "iz6",
+          "id": 26093361
+        },
+        {
+          "name": "ItzNeizon",
+          "id": 16426513
+        }
+      ]
+    },
+    {
+      "name": "工作有没有认真做 工资涨没涨",
+      "leader": {
+        "name": "Iulu",
+        "id": 9681381
+      },
+      "members": [
+        {
+          "name": "WhRice0",
+          "id": 24038648
+        },
+        {
+          "name": "Aokreti",
+          "id": 27321919
+        },
+        {
+          "name": "Dichlorocarbene",
+          "id": 21847711
+        },
+        {
+          "name": "-aLIEz-",
+          "id": 31372295
+        }
+      ]
+    },
+    {
+      "name": "bzd",
+      "leader": {
+        "name": "nanoic",
+        "id": 32039184
+      },
+      "members": [
+        {
+          "name": "lzayoi_sakuya9",
+          "id": 25454125
+        },
+        {
+          "name": "Tresead",
+          "id": 24513218
+        },
+        {
+          "name": "RegaEDM",
+          "id": 31396332
+        },
+        {
+          "name": "DORWMON",
+          "id": 28643013
+        },
+        {
+          "name": "Senbe1",
+          "id": 6911753
+        }
       ]
     }
   ]
