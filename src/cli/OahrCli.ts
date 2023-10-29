@@ -18,6 +18,7 @@ MainMenu Commands
 const lobbyMenuCommandsMessage = `
 LobbyMenu Commands
   [say <Message>] Send a message to #multiplayer.
+  [inv / invite <Player>] Invite a player.
   [info] Show the application's current information.
   [reorder] Arrange the host queue, e.g., 'reorder player1, player2, player3'
   [regulation <regulation command>] Change one or more regulations, e.g., 'regulation star_min=2 star_max=5 length_min=60 length_max=300' 
@@ -162,6 +163,10 @@ export class OahrCli extends OahrBase {
           case 'quit':
             logger.info('quit');
             this.scene = this.scenes.exited;
+            break;
+          case 'inv':
+          case 'invite':
+            this.lobby.SendMessage(`!mp invite ${l.arg}`);
             break;
           case 'h':
           case 'help':

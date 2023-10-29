@@ -34,7 +34,7 @@ export class OahrBase {
   lobby: Lobby;
   selector: AutoHostSelector;
   starter: MatchStarter | undefined;
-  skipper: HostSkipper;
+  skipper: HostSkipper | undefined;
   terminator: LobbyTerminator;
   aborter: MatchAborter | undefined;
   wordCounter: WordCounter;
@@ -43,7 +43,7 @@ export class OahrBase {
   autoTimer: AutoStartTimer;
   history: HistoryLoader;
   checker: MapChecker;
-  keeper: LobbyKeeper;
+  keeper: LobbyKeeper | undefined;
   afkkicker: AfkKicker | undefined;
   miscLoader: MiscLoader;
   cleaner: CacheCleaner;
@@ -59,10 +59,11 @@ export class OahrBase {
       this.starter = new MatchStarter(this.lobby);
       this.aborter = new MatchAborter(this.lobby);
       this.afkkicker = new AfkKicker(this.lobby);
+      this.skipper = new HostSkipper(this.lobby);
+      this.keeper = new LobbyKeeper(this.lobby);
     }
 
     this.selector = new AutoHostSelector(this.lobby);
-    this.skipper = new HostSkipper(this.lobby);
     this.terminator = new LobbyTerminator(this.lobby);
     this.wordCounter = new WordCounter(this.lobby);
     this.inoutLogger = new InOutLogger(this.lobby);
@@ -71,7 +72,6 @@ export class OahrBase {
     this.history = new HistoryLoader(this.lobby);
     this.miscLoader = new MiscLoader(this.lobby);
     this.checker = new MapChecker(this.lobby);
-    this.keeper = new LobbyKeeper(this.lobby);
     this.cleaner = new CacheCleaner(this.lobby);
 
     this.lobby.RaisePluginsLoaded();
