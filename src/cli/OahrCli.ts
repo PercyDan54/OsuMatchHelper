@@ -10,7 +10,7 @@ const logger = getLogger('cli');
 const mainMenuCommandsMessage = `
 MainMenu Commands
   [make <Lobby_name>] Make a lobby, e.g., 'make 5* auto host rotation'
-  [enter <LobbyID>] Enter a lobby, e.g., 'enter 123456' (It will only work with a tournament lobby ID.)
+  [enter <LobbyID>] Enter a lobby, e.g., 'enter 123456'
   [help] Show this message.
   [quit] Quit this application.
 `;

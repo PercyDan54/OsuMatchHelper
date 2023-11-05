@@ -39,11 +39,12 @@ class MapInfo extends MatchInfoBase {
   id: number = 0;
   mods: string = '';
 
-  constructor(id: number, name: string, mods: string) {
+  constructor(id: number, name: string, mods: string, multiplier: number = 1) {
     super();
     this.id = id;
     this.name = name;
     this.mods = mods;
+    this.multiplier = multiplier;
   }
 }
 
@@ -58,7 +59,6 @@ class MappoolInfo extends MatchInfoBase {
 }
 
 class ScoreMultiplierInfo {
-  maps: Map<string, number> = new Map<string, number>();
   mods: Map<string, number> = new Map<string, number>();
 }
 
@@ -78,14 +78,6 @@ class MatchInfo {
   activeTeams: string[] = [];
   teams: TeamInfo[] = [];
   allTeams: TeamInfo[] = [];
-}
-
-function getOrDefault(map: Map<any, any>, index: any, _default: any = 1): any {
-  if (!map.has(index)) {
-    return _default;
-  } else {
-    return map.get(index) as any;
-  }
 }
 
 function increment(map: Map<any, number>, index: any, amount: number = 1) {
@@ -159,7 +151,7 @@ export class MatchHelper extends LobbyPlugin {
       const mapPools = Array.from(match.maps.entries()) as any[];
       for (const entry of mapPools) {
         const name = entry[0];
-        let pool = entry[1];
+        const pool = entry[1];
         if (Array.isArray(pool)) {
           match.maps.set(name, new MappoolInfo(pool));
         }
@@ -307,13 +299,8 @@ export class MatchHelper extends LobbyPlugin {
           }
         }
       }
-      const msg = `Match started with ${this.startedPlayers} players`;
-      if (this.startedPlayers === this.match.teamSize * 2) {
-        this.logger.info(msg);
-      }
-      else {
-        this.logger.warn(msg);
-      }
+
+      this.logger.log(this.startedPlayers === this.match.teamSize * 2 ? 'info' : 'warn', `Match started with ${this.startedPlayers} players`);
     });
     this.lobby.ParsedSettings.on(a => {
       for (const player of a.result.players) {
@@ -674,6 +661,7 @@ export class MatchHelper extends LobbyPlugin {
       }
     }
   }
+
   private processBan(param: string, player: Player) {
     const map = this.getMap(param);
     if (map) {
@@ -753,7 +741,7 @@ export class MatchHelper extends LobbyPlugin {
     if (!map) {
       return null;
     }
-    return new MapInfo(map, param, pool.mods ?? mod);
+    return new MapInfo(map, param, pool.mods ?? mod, pool.multiplier ?? 1);
   }
 
   private rotatePickTeam() {
