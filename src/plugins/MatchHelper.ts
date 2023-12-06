@@ -32,7 +32,6 @@ class TeamInfo extends MatchInfoBase {
 
 class PlayerInfo extends MatchInfoBase {
   id: number = 0;
-  team: TeamInfo = new TeamInfo();
 }
 
 class MapInfo extends MatchInfoBase {
@@ -159,13 +158,11 @@ export class MatchHelper extends LobbyPlugin {
 
       for (const team of match.allTeams) {
         for (let i = 0; i < team.members.length; i++) {
-          let member = team.members[i];
+          const member = team.members[i];
           if (typeof member === 'string') {
             team.members[i] = new Player(member);
           }
-          team.members[i].team = team;
-          member = team.members[i];
-          match.players.set(member.name, member);
+          match.players.set(team.members[i].name, team.members[i]);
         }
 
         if (!team.leader) {
@@ -224,7 +221,7 @@ export class MatchHelper extends LobbyPlugin {
       if (!player1) {
         return;
       }
-      const team = player1.team;
+      const team = this.getPlayerTeam(player.name) as TeamInfo;
 
       this.finishedPlayers++;
       if (!isPassed)
@@ -236,7 +233,7 @@ export class MatchHelper extends LobbyPlugin {
         multiplierText += `x${multiplier}`;
       }
 
-      const teamMultiplier = player1.team.multiplier ?? 1;
+      const teamMultiplier = team?.multiplier ?? 1;
       multiplier *= teamMultiplier;
       if (teamMultiplier !== 1) {
         multiplierText += ` x${teamMultiplier}`;
@@ -304,15 +301,17 @@ export class MatchHelper extends LobbyPlugin {
     });
     this.lobby.ParsedSettings.on(a => {
       for (const player of a.result.players) {
-        for (const t of this.match.teams) {
-          for (const member of t.members) {
+        for (let i = 0; i < this.match.teams.length; i++) {
+          const t = this.match.teams[i];
+          for (let i1 = 0; i1 < t.members.length; i1++) {
+            const member = t.members[i1];
             if (member.id === player.id) {
               const name = member.name;
               const newName = player.name;
               if (name !== newName) {
-                member.name = newName;
+                this.match.teams[i].members[i1].name = newName;
                 this.match.players.delete(name);
-                this.match.players.set(newName, member);
+                this.match.players.set(newName, this.match.teams[i].members[i1]);
                 this.logger.info(`Player #${member.id} name changed ${name} -> ${newName}`);
               }
             }
@@ -623,7 +622,7 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private processPick(param: string, player: Player) {
-    const leader = this.isLeader(player.name);
+    const leader = this.isLeader(player);
 
     param = param.toUpperCase();
     if (!leader && !player.isReferee || (this.tie && !player.isReferee)) {
@@ -669,7 +668,7 @@ export class MatchHelper extends LobbyPlugin {
         return;
       }
 
-      const team = this.isLeader(player.name);
+      const team = this.isLeader(player);
       if (!team && !player.isReferee) {
         return;
       }
@@ -750,9 +749,9 @@ export class MatchHelper extends LobbyPlugin {
     this.lobby.SendMessage(`请队伍 ${this.match.teams[this.currentPickTeam].name} 队长选图`);
   }
 
-  private isLeader(player: string): TeamInfo | null {
+  private isLeader(p: PlayerInfo | Player): TeamInfo | null {
     for (const team of this.match.teams) {
-      if (team.leader.name === player) {
+      if (team.leader.name === p.name || (team.leader.id === p.id && p.id)) {
         return team;
       }
     }
@@ -761,6 +760,16 @@ export class MatchHelper extends LobbyPlugin {
 
   private getPlayer(player: string): PlayerInfo | null {
     return this.match.players.get(player) ?? null;
+  }
+
+  private getPlayerTeam(p: string): TeamInfo | null {
+    for (const team of this.match.teams) {
+      for (const member of team.members) {
+        if (member.name === p)
+          return team;
+      }
+    }
+    return null;
   }
 
   private getPlayerSettings(player: PlayerInfo | Player): PlayerSettings | null {
