@@ -132,7 +132,7 @@ export class MatchHelper extends LobbyPlugin {
     this.loadMatch();
     if (this.option.enabled) {
       this.registerEvents();
-      this.webApi.StartServer(3333);
+      //this.webApi.StartServer(3333);
     }
   }
 
@@ -384,7 +384,7 @@ export class MatchHelper extends LobbyPlugin {
           this.startPending = false;
           break;
         case BanchoResponseType.TimerFinished:
-          if (this.currentPick && !this.warmup && !this.tie) {
+          if (!this.currentPick && !this.warmup && !this.tie) {
             this.lobby.SendMessage(`计时超时，${this.match.teams[this.currentPickTeam].name} 队无选手选图`);
             if (this.match.rotateOnTimeout) {
               this.rotatePickTeam();
