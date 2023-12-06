@@ -132,7 +132,15 @@ export class MatchHelper extends LobbyPlugin {
     this.loadMatch();
     if (this.option.enabled) {
       this.registerEvents();
-      this.webApi.StartServer(3333);
+      //this.webApi.StartServer(3333);
+    }
+  }
+
+  SetRefs() {
+    for (const player of this.match.referees) {
+      if (!this.lobby.GetPlayer(player)?.isReferee) {
+        this.lobby.SendMessage(`!mp addref ${player}`);
+      }
     }
   }
 
@@ -162,7 +170,6 @@ export class MatchHelper extends LobbyPlugin {
           if (typeof member === 'string') {
             team.members[i] = new Player(member);
           }
-          match.players.set(team.members[i].name, team.members[i]);
         }
 
         if (!team.leader) {
@@ -172,6 +179,10 @@ export class MatchHelper extends LobbyPlugin {
             team.leader = new Player(team.leader);
           }
           team.members.push(team.leader);
+        }
+
+        for (let i = 0; i < team.members.length; i++) {
+          match.players.set(team.members[i].name, team.members[i]);
         }
 
         if (team.members.length === 1) {
@@ -210,7 +221,11 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private registerEvents(): void {
-    this.lobby.ircClient.on('selfMessage', (target, message) => this.webApi.pendingMessages.push({username: this.lobby.ircClient.nick, text: message, date: new Date().toISOString()}));
+    this.lobby.ircClient.on('selfMessage', (target, message) => this.webApi.pendingMessages.push({
+      username: this.lobby.ircClient.nick,
+      text: message,
+      date: new Date().toISOString()
+    }));
     this.lobby.ReceivedChatCommand.on(a => this.onReceivedChatCommand(a.command, a.param, a.player));
     this.lobby.PlayerChated.on(a => this.onPlayerChat(a.message, a.player));
     this.lobby.PlayerFinished.on(({player, score, isPassed}) => {
@@ -269,6 +284,10 @@ export class MatchHelper extends LobbyPlugin {
         this.startPending = false;
       }
     });
+    this.lobby.PlayerLeft.on(({player, slot, fromMpSettings}) => {
+      if (!this.scoreUpdated && this.getPlayerTeam(player.name))
+        this.startedPlayers--;
+    });
     this.lobby.MatchStarted.on(() => {
       if (this.warmup) {
         return;
@@ -277,6 +296,7 @@ export class MatchHelper extends LobbyPlugin {
       if (this.currentPick) {
         this.mapsChosen.push(this.currentPick.name);
       }
+
       this.teamScore.clear();
       this.startedPlayers = 0;
       this.finishedPlayers = 0;
@@ -333,17 +353,17 @@ export class MatchHelper extends LobbyPlugin {
                   let needsHidden = true;
                   let needsHardRock = true;
                   for (const member of team.members) {
-                    if (!players.includes(member.name)){
+                    if (!players.includes(member.name)) {
                       continue;
                     }
                     const playerSettings = this.getPlayerSettings(member);
                     const mods = playerSettings?.options.split(' / ')[1] ?? '';
                     if (!mods.includes('NoFail'))
                       noNF.push(member.name);
-                    if (mods.includes('Hidden')){
+                    if (mods.includes('Hidden')) {
                       needsHidden = false;
                     }
-                    if (mods.includes('HardRock')){
+                    if (mods.includes('HardRock')) {
                       needsHardRock = false;
                     }
                   }
@@ -384,7 +404,7 @@ export class MatchHelper extends LobbyPlugin {
           this.startPending = false;
           break;
         case BanchoResponseType.TimerFinished:
-          if (this.currentPick && !this.warmup && !this.tie) {
+          if (!this.currentPick && !this.warmup && !this.tie) {
             this.lobby.SendMessage(`计时超时，${this.match.teams[this.currentPickTeam].name} 队无选手选图`);
             if (this.match.rotateOnTimeout) {
               this.rotatePickTeam();
@@ -464,7 +484,7 @@ export class MatchHelper extends LobbyPlugin {
     this.tie = true;
     this.lobby.SendMessage('即将进入TB环节');
     this.SendPluginMessage('changeMap', [this.match.tieBreaker.map.toString()]);
-    this.setMod('FM');
+    this.setMod('FreeMod');
     this.currentPick = new MapInfo(this.match.tieBreaker.map, 'TB', 'FreeMod');
     this.lobby.SendMessage(`!mp timer ${this.match.tieBreaker.timer}`);
   }
@@ -485,7 +505,11 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private onReceivedChatCommand(command: string, param: string, player: Player) {
-    this.webApi.pendingMessages.push({username: player.name, text: `${command} ${param}`, date: new Date().toISOString()});
+    this.webApi.pendingMessages.push({
+      username: player.name,
+      text: `${command} ${param}`,
+      date: new Date().toISOString()
+    });
     switch (command) {
       case '!pick':
         this.processPick(param, player);
@@ -653,14 +677,6 @@ export class MatchHelper extends LobbyPlugin {
     }
   }
 
-  SetRefs() {
-    for (const player of this.match.referees) {
-      if (!this.lobby.GetPlayer(player)?.isReferee) {
-        this.lobby.SendMessage(`!mp addref ${player}`);
-      }
-    }
-  }
-
   private processBan(param: string, player: Player) {
     const map = this.getMap(param);
     if (map) {
@@ -689,8 +705,7 @@ export class MatchHelper extends LobbyPlugin {
     if (mods === 'FreeMod') {
       this.freeMod = true;
       modString = mods;
-    }
-    else {
+    } else {
       const defaultId = id(this.match.defaultMod);
       let modNumber = id(mods);
       modNumber &= ~defaultId;

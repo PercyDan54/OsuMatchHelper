@@ -91,7 +91,7 @@ export class OahrDiscord extends OahrBase {
     embed.addField('History', `Activity: \`${this.history.repository.hasError ? 'Stopped' : 'Active'}\`, Latest: \`${this.history.repository?.latestEventId.toString() ?? '0'}\`, Loaded: \`${this.history.repository?.events.length.toString() ?? '0'}\``, false);
     embed.addField('Regulation(s)', `\`${this.checker.getRegulationDescription()}\``, false);
 
-    const keeps = this.keeper.getDescription();
+    const keeps = this.keeper?.getDescription() ?? '';
     if (keeps !== '') {
       embed.addField('Keep(s)', `\`${keeps}\``, false);
     }
@@ -116,7 +116,7 @@ export class OahrDiscord extends OahrBase {
     if (ho !== '') {
       embed.addField('Host order', `\`${ho}\``, false);
     }
-    const keeps = this.keeper.getDescription();
+    const keeps = this.keeper?.getDescription() ?? '';
     if (keeps !== '') {
       embed.addField('Keep(s)', `\`${keeps}\``, false);
     }
