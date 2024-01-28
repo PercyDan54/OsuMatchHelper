@@ -8,7 +8,7 @@ import path from 'path';
 import { BaseClient } from 'kookts';
 import { KookCardMessage, KookModule, KookText, Paragraph } from '../kook/KookMessage';
 import { PlayerSettings } from '../parsers/MpSettingsParser';
-import { checkCompatible, id, name } from '../libs/modUtils';
+import { checkCompatible, id, name } from '../libs/ModUtils';
 import { MatchHelperApi } from './MatchHelperApi';
 
 export interface MatchHelperOption {
@@ -20,18 +20,45 @@ export interface MatchHelperOption {
   };
 }
 
-class TeamInfo {
+abstract class MatchInfoBase {
+  multiplier: number = 1;
   name: string = '';
+}
+
+class TeamInfo extends MatchInfoBase {
   leader: Player = new Player('');
-  members: Player[] = [];
+  members: PlayerInfo[] = [];
+}
+
+class PlayerInfo extends MatchInfoBase {
+  id: number = 0;
+}
+
+class MapInfo extends MatchInfoBase {
+  id: number = 0;
+  mods: string = '';
+
+  constructor(id: number, name: string, mods: string, multiplier: number = 1) {
+    super();
+    this.id = id;
+    this.name = name;
+    this.mods = mods;
+    this.multiplier = multiplier;
+  }
+}
+
+class MappoolInfo extends MatchInfoBase {
+  mods: string | undefined;
+  maps: number[] = [];
+
+  constructor(maps: number[]) {
+    super();
+    this.maps = maps;
+  }
 }
 
 class ScoreMultiplierInfo {
-  maps: Map<string, number> = new Map<string, number>();
-  mapRolls: Map<string, number> = new Map<string, number>();
   mods: Map<string, number> = new Map<string, number>();
-  teams: Map<string, number> = new Map<string, number>();
-  players: Map<string, number> = new Map<string, number>();
 }
 
 class MatchInfo {
@@ -43,13 +70,15 @@ class MatchInfo {
   teamSize: number = 3;
   referees: string[] = [];
   defaultMod: string = 'NF';
-  customMods: Map<string, string> = new Map<string, string>();
-  tieBreaker: { timer: number, map: string } = { timer: 0, map: '' };
+  players: Map<string, PlayerInfo> = new Map<string, PlayerInfo>();
+  tieBreaker: { timer: number, map: number } = { timer: 0, map: 0 };
   customScoreMultipliers: ScoreMultiplierInfo = new ScoreMultiplierInfo();
-  maps: Map<string, number[]> = new Map<string, number[]>();
+  maps: Map<string, MappoolInfo> = new Map<string, MappoolInfo>();
   activeTeams: string[] = [];
   teams: TeamInfo[] = [];
   allTeams: TeamInfo[] = [];
+  mapRolls: Map<string, number> = new Map<string, number>();
+  mapBaseScores: Map<string, number> = new Map<string, number>();
 }
 
 function getOrDefault(map: Map<any, any>, index: any, _default: any = 1): any {
@@ -85,7 +114,7 @@ export class MatchHelper extends LobbyPlugin {
   warmup: boolean = true;
   startPending: boolean = false;
   scoreUpdated: boolean = false;
-  currentPick: string = '';
+  currentPick: MapInfo | null = null;
   currentPickTeam: number = 0;
   mapsChosen: string[] = [];
   mapsBanned: Map<string, TeamInfo> = new Map<string, TeamInfo>();
@@ -95,6 +124,7 @@ export class MatchHelper extends LobbyPlugin {
   pointsToWin: number = 1;
   teamScore: Map<TeamInfo, number> = new Map<TeamInfo, number>();
   matchScore: Map<TeamInfo, number> = new Map<TeamInfo, number>();
+  teamRolls: Map<string, number> = new Map<string, number>();
   freeMod: boolean = false;
   kookClient: BaseClient | undefined;
   kookMessages: Map<TeamInfo, KookText[]> = new Map<TeamInfo, KookText[]>();
@@ -113,7 +143,7 @@ export class MatchHelper extends LobbyPlugin {
     this.loadMatch();
     if (this.option.enabled) {
       this.registerEvents();
-      this.webApi.StartServer(3333);
+      //this.webApi.StartServer(3333);
     }
   }
 
@@ -122,24 +152,31 @@ export class MatchHelper extends LobbyPlugin {
 
     if (fs.existsSync(config)) {
       const match = JSON.parse(fs.readFileSync(config, 'utf8'));
-      match.customMods = new Map<string, string>(Object.entries(match.customMods));
-      match.customScoreMultipliers.maps = new Map<string, number>(Object.entries(match.customScoreMultipliers.maps));
-      match.customScoreMultipliers.mapRolls = new Map<string, number>(Object.entries(match.customScoreMultipliers.mapRolls));
       match.customScoreMultipliers.mods = new Map<string, number>(Object.entries(match.customScoreMultipliers.mods));
-      match.customScoreMultipliers.teams = new Map<string, number>(Object.entries(match.customScoreMultipliers.teams));
-      match.customScoreMultipliers.players = new Map<string, number>(Object.entries(match.customScoreMultipliers.players));
-      match.maps = new Map<string, number[]>(Object.entries(match['maps']));
+      match.maps = new Map<string, MappoolInfo[]>(Object.entries(match.maps));
+      match.mapBaseScores = new Map<string, number>(Object.entries(match.mapBaseScores));
+      match.mapRolls = new Map<string, number>(Object.entries(match.mapRolls));
+      match.players = new Map<string, PlayerInfo>();
       this.pointsToWin = Math.ceil(match.bestOf / 2);
       match.allTeams = match.teams;
-      this.match = match;
 
-      for (const team of this.match.allTeams) {
+      const mapPools = Array.from(match.maps.entries()) as any[];
+      for (const entry of mapPools) {
+        const name = entry[0];
+        const pool = entry[1];
+        if (Array.isArray(pool)) {
+          match.maps.set(name, new MappoolInfo(pool));
+        }
+      }
+
+      for (const team of match.allTeams) {
         for (let i = 0; i < team.members.length; i++) {
           const member = team.members[i];
           if (typeof member === 'string') {
             team.members[i] = new Player(member);
           }
         }
+
         if (!team.leader) {
           team.leader = team.members[0];
         } else {
@@ -149,10 +186,17 @@ export class MatchHelper extends LobbyPlugin {
           team.members.push(team.leader);
         }
 
+        for (let i = 0; i < team.members.length; i++) {
+          const member = team.members[i];
+          match.players.set(team.members[i].name, team.members[i]);
+        }
+
         if (team.members.length === 1) {
           team.name = team.members[0].name;
         }
       }
+
+      this.match = match;
       this.loadTeams();
       this.logger.info('Loaded match config');
     } else {
@@ -190,18 +234,26 @@ export class MatchHelper extends LobbyPlugin {
       if (this.warmup)
         return;
 
-      const team = this.getPlayerTeam(player.name);
-      if (!team) {
+      const player1 = this.getPlayer(player.name);
+      if (!player1) {
         return;
       }
+      const team = this.getPlayerTeam(player.name) as TeamInfo;
+
       this.finishedPlayers++;
       if (!isPassed)
         return;
 
-      let multiplier = getOrDefault(this.match.customScoreMultipliers.players, player.name);
+      let multiplier = player1.multiplier ?? 1;
       let multiplierText = '';
       if (multiplier !== 1) {
         multiplierText += `x${multiplier}`;
+      }
+
+      const teamMultiplier = team?.multiplier ?? 1;
+      multiplier *= teamMultiplier;
+      if (teamMultiplier !== 1) {
+        multiplierText += ` x${teamMultiplier}`;
       }
 
       // Freemod custom mod score multiplier
@@ -239,7 +291,9 @@ export class MatchHelper extends LobbyPlugin {
         return;
       }
 
-      this.mapsChosen.push(this.currentPick);
+      if (this.currentPick) {
+        this.mapsChosen.push(this.currentPick.name);
+      }
       this.teamScore.clear();
       this.startedPlayers = 0;
       this.finishedPlayers = 0;
@@ -259,24 +313,23 @@ export class MatchHelper extends LobbyPlugin {
           }
         }
       }
-      const msg = `Match started with ${this.startedPlayers} players`;
-      if (this.startedPlayers === this.match.teamSize * 2) {
-        this.logger.info(msg);
-      }
-      else {
-        this.logger.warn(msg);
-      }
+
+      this.logger.log(this.startedPlayers === this.match.teamSize * 2 ? 'info' : 'warn', `Match started with ${this.startedPlayers} players`);
     });
     this.lobby.ParsedSettings.on(a => {
       for (const player of a.result.players) {
-        for (const t of this.match.teams) {
-          for (const member of t.members) {
+        for (let i = 0; i < this.match.teams.length; i++) {
+          const t = this.match.teams[i];
+          for (let i1 = 0; i1 < t.members.length; i1++) {
+            const member = t.members[i1];
             if (member.id === player.id) {
               const name = member.name;
               const newName = player.name;
               if (name !== newName) {
-                member.name = newName;
-                this.logger.info(`Member #${member.id} name changed ${name} -> ${newName}`);
+                this.match.teams[i].members[i1].name = newName;
+                this.match.players.delete(name);
+                this.match.players.set(newName, this.match.teams[i].members[i1]);
+                this.logger.info(`Player #${member.id} name changed ${name} -> ${newName}`);
               }
             }
           }
@@ -286,7 +339,7 @@ export class MatchHelper extends LobbyPlugin {
     this.lobby.ReceivedBanchoResponse.on(a => {
       switch (a.response.type) {
         case BanchoResponseType.AllPlayerReady:
-          if (this.currentPick !== '' && !this.warmup && !this.startPending) {
+          if (this.currentPick && !this.warmup && !this.startPending) {
             if (this.freeMod) {
               this.lobby.SendMessage('所有选手已准备');
               this.lobby.ParsedSettings.once(() => {
@@ -348,7 +401,7 @@ export class MatchHelper extends LobbyPlugin {
           this.startPending = false;
           break;
         case BanchoResponseType.TimerFinished:
-          if (this.currentPick === '' && !this.warmup && !this.tie) {
+          if (!this.currentPick && !this.warmup && !this.tie) {
             this.lobby.SendMessage(`计时超时，${this.match.teams[this.currentPickTeam].name} 队无选手选图`);
             if (this.match.rotateOnTimeout) {
               this.rotatePickTeam();
@@ -356,13 +409,13 @@ export class MatchHelper extends LobbyPlugin {
           }
           break;
         case BanchoResponseType.Rolled:
-          if (this.currentPick !== '' || this.tie) {
+          if (this.currentPick || this.tie) {
             const team = this.getPlayerTeam(a.response.params[0]);
             const point = a.response.params[1] as number;
-            if (team && point && !this.match.customScoreMultipliers.teams.has(team.name)) {
+            if (team && point <= this.getMapRoll(this.currentPick) && !this.teamRolls.has(team.name)) {
               this.logger.info(`Team ${team.name} set to ${point}`);
-              this.match.customScoreMultipliers.teams.set(team.name, point);
-              if (this.match.customScoreMultipliers.teams.size === 2) {
+              this.teamRolls.set(team.name, point);
+              if (this.teamRolls.size === 2) {
                 this.sendTargetScore();
               }
             }
@@ -372,20 +425,56 @@ export class MatchHelper extends LobbyPlugin {
     });
   }
 
+  private sendRoll() {
+    this.lobby.SendMessageWithDelayAsync(`本图roll点：${this.getMapRoll(this.currentPick)} | 基准分数: ${(this.getMapBaseScore(this.currentPick) * 10000).toLocaleString('en-US')}`, 4000).then();
+  }
+
+  private sendTargetScore() {
+    this.lobby.SendMessage(`目标分数：${this.getBaseScore().toLocaleString('en-US')}`);
+  }
+
+  private getBaseScore() {
+    let sum = 0;
+
+    for (const v of this.teamRolls.values()) {
+      sum += v;
+    }
+    return this.getMapBaseScore(this.currentPick) * 10000 + sum * 5000;
+  }
+
+  private getMapBaseScore(map: MapInfo | null): number {
+    if (!map) return 0;
+    if (this.match.mapRolls.has(map.name)) {
+      return getOrDefault(this.match.mapBaseScores, map.name, 50);
+    } else {
+      return getOrDefault(this.match.mapBaseScores, map.mods, 50);
+    }
+  }
+
+  private getMapRoll(map: MapInfo | null): number {
+    if (!map) return 0;
+    if (this.match.mapRolls.has(map.name)) {
+      return getOrDefault(this.match.mapRolls, map.name, 200);
+    } else {
+      return getOrDefault(this.match.mapRolls, map.id, 200);
+    }
+  }
+
   private updateMatchScore() {
     if (this.scoreUpdated) {
       this.logger.warn('Match score change triggered more than once');
       return;
     }
 
-    const baseMult = this.getBaseScore();
+    const baseScore = this.getBaseScore();
     for (const t of this.teamScore.entries()) {
-      this.teamScore.set(t[0], Math.abs(t[1] - baseMult));
+      this.teamScore.set(t[0], Math.abs(t[1] - baseScore));
     }
+
     const teamScoreSorted = new Map([...this.teamScore.entries()].sort((a, b) => a[1] - b[1]));
     const scoreTeams = Array.from(teamScoreSorted.keys());
     const winner = scoreTeams[0];
-    increment(this.matchScore, winner, 1);
+    increment(this.matchScore, winner, this.currentPick?.multiplier ?? 1);
 
     const teams = Array.from(this.matchScore.keys());
     const matchScore = Array.from(this.matchScore.values());
@@ -410,8 +499,8 @@ export class MatchHelper extends LobbyPlugin {
     this.lobby.SendMessage(message);
     msg.modules.push(new KookModule('divider'));
     msg.modules.push(new KookModule('header', new KookText('plain-text', message)));
-    if (this.currentPick !== '') {
-      msg.modules.push(new KookModule('header', new KookText('plain-text', `${this.match.teams[this.currentPickTeam].name} 队选了 ${this.currentPick} (BID ${this.lobby.mapId})`)));
+    if (this.currentPick) {
+      msg.modules.push(new KookModule('header', new KookText('plain-text', `${this.match.teams[this.currentPickTeam].name} 队选了 ${this.currentPick.name} (BID ${this.lobby.mapId})`)));
     } else if (this.tie) {
       msg.modules.push(new KookModule('header', new KookText('plain-text', `当前选图 TB (BID ${this.lobby.mapId})`)));
     }
@@ -424,10 +513,10 @@ export class MatchHelper extends LobbyPlugin {
     if (this.kookClient) {
       this.kookClient.Api.message.create(10, this.option.kook.channelId, JSON.stringify([msg])).then();
     }
-    this.currentPick = '';
+    this.currentPick = null;
     this.scoreUpdated = true;
     this.freeMod = false;
-    this.match.customScoreMultipliers.teams.clear();
+    this.teamRolls.clear();
 
     if (score1 === score2 && score1 === this.pointsToWin - 1) {
       this.triggerTiebreaker();
@@ -442,22 +531,12 @@ export class MatchHelper extends LobbyPlugin {
     }
   }
 
-  private getBaseScore() {
-    let sum = 0;
-
-    for (const v of this.match.customScoreMultipliers.teams.values()) {
-      sum += v;
-    }
-    return (this.getMapMultiplier(this.currentPick) + sum) * 10000;
-  }
-
   private triggerTiebreaker() {
     this.tie = true;
     this.lobby.SendMessage('即将进入TB环节');
     this.SendPluginMessage('changeMap', [this.match.tieBreaker.map.toString()]);
     this.setMod('FM');
-    this.currentPick = 'TB1';
-    this.sendRoll();
+    this.currentPick = new MapInfo(this.match.tieBreaker.map, 'TB', 'FreeMod');
     this.lobby.SendMessage(`!mp timer ${this.match.tieBreaker.timer}`);
   }
 
@@ -486,6 +565,7 @@ export class MatchHelper extends LobbyPlugin {
         this.processBan(param, player);
         break;
       case '!noban':
+      case '!unban':
         if (player.isReferee) {
           param = param.toUpperCase();
           if (this.mapsBanned.has(param)) {
@@ -554,7 +634,7 @@ export class MatchHelper extends LobbyPlugin {
           this.loadMatch();
         }
         break;
-      case '!setrefs':
+      case 'setrefs':
         if (player.isReferee || this.match.referees.includes(player.name)) {
           this.SetRefs();
         }
@@ -598,7 +678,7 @@ export class MatchHelper extends LobbyPlugin {
                 const scores = [s1, s2];
                 const teams = Array.from(this.matchScore.keys());
                 for (let i = 0; i < teams.length; i++) {
-                  this.match.customScoreMultipliers.teams.set(teams[i].name, scores[i]);
+                  this.teamRolls.set(teams[i].name, scores[i]);
                 }
                 this.sendTargetScore();
               }
@@ -628,7 +708,7 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private processPick(param: string, player: Player) {
-    const leader = this.isLeader(player.name);
+    const leader = this.isLeader(player);
 
     param = param.toUpperCase();
     if (!leader && !player.isReferee || (this.tie && !player.isReferee)) {
@@ -652,8 +732,8 @@ export class MatchHelper extends LobbyPlugin {
     }
     try {
       this.SendPluginMessage('changeMap', [map.id.toString()]);
-      this.setMod(parseMapId(map.name)[0]);
-      this.currentPick = map.name;
+      this.setMod(map.mods);
+      this.currentPick = map;
       this.sendRoll();
     } catch {
       this.lobby.SendMessage('Error: 未知错误，图可能不存在');
@@ -668,14 +748,6 @@ export class MatchHelper extends LobbyPlugin {
     }
   }
 
-  private sendRoll() {
-    this.lobby.SendMessageWithDelayAsync(`本图roll点：${this.getMapRoll(this.currentPick)} | 基准分数: ${(this.getMapMultiplier(this.currentPick) * 10000).toLocaleString('en-US')}`, 4000).then();
-  }
-
-  private sendTargetScore() {
-    this.lobby.SendMessage(`目标分数：${this.getBaseScore().toLocaleString('en-US')}`);
-  }
-
   private processBan(param: string, player: Player) {
     const map = this.getMap(param);
     if (map) {
@@ -683,7 +755,7 @@ export class MatchHelper extends LobbyPlugin {
         return;
       }
 
-      const team = this.isLeader(player.name);
+      const team = this.isLeader(player);
       if (!team && !player.isReferee) {
         return;
       }
@@ -700,29 +772,27 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private setMod(mods: string) {
-    for (const s of this.match.customMods.entries()) {
-      if (s[1] === 'FreeMod' && mods.includes(s[0])) {
-        this.freeMod = true;
-        this.lobby.SendMessage('!mp mods FreeMod');
-        return;
-      }
-      mods = mods.replace(s[0], s[1]);
-    }
-    const defaultId = id(this.match.defaultMod);
-    let modNumber = id(mods);
-    modNumber &= ~defaultId;
-    const compat = checkCompatible(modNumber | defaultId, modNumber);
-    const compatibleModsString = compat === 0 ? this.match.defaultMod : name(compat);
     let modString = '';
-    for (let i = 0; i < compatibleModsString.length; i += 2) {
-      modString += `${compatibleModsString.slice(i, i + 2)} `;
+    if (mods === 'FreeMod') {
+      this.freeMod = true;
+      modString = mods;
     }
-    modString = modString.replace('RX', 'Relax');
+    else {
+      const defaultId = id(this.match.defaultMod);
+      let modNumber = id(mods);
+      modNumber &= ~defaultId;
+      const compat = checkCompatible(modNumber | defaultId, modNumber);
+      const compatibleModsString = compat === 0 ? this.match.defaultMod : name(compat);
+      for (let i = 0; i < compatibleModsString.length; i += 2) {
+        modString += `${compatibleModsString.slice(i, i + 2)} `;
+      }
+      modString = modString.replace('RX', 'Relax');
+    }
     this.lobby.SendMessage(`!mp mods ${modString}`);
   }
 
   private resetPick() {
-    this.currentPick = '';
+    this.currentPick = null;
     this.mapsChosen = [];
     this.mapsBanned.clear();
     this.teamBanCount.clear();
@@ -736,7 +806,7 @@ export class MatchHelper extends LobbyPlugin {
     }
   }
 
-  private getMap(param: string): { id: number, name: string } | null {
+  private getMap(param: string): MapInfo | null {
     param = param.toUpperCase();
     const split = parseMapId(param);
     const mod = split[0];
@@ -746,35 +816,18 @@ export class MatchHelper extends LobbyPlugin {
     }
     const id = split[1] - 1;
 
-    if (id < 0 || !this.match.maps.has(mod) || (this.match.maps.get(mod) as number[]).length <= id) {
+    if (id < 0 || !this.match.maps.has(mod) || (this.match.maps.get(mod) as MappoolInfo).maps.length <= id) {
       this.lobby.SendMessage('操作失败:  图不存在');
       return null;
     }
 
-    const maps = this.match.maps.get(mod) as number[];
+    const pool = this.match.maps.get(mod) as MappoolInfo;
+    const maps = pool.maps as number[];
     const map = maps[id];
     if (!map) {
       return null;
     }
-    return { id: map, name: param };
-  }
-
-  private getMapMultiplier(param: string): number {
-    const mod = parseMapId(param)[0];
-    if (this.match.customScoreMultipliers.maps.has(param)) {
-      return getOrDefault(this.match.customScoreMultipliers.maps, param, 50);
-    } else {
-      return getOrDefault(this.match.customScoreMultipliers.maps, mod, 50);
-    }
-  }
-
-  private getMapRoll(param: string): number {
-    const mod = parseMapId(param)[0];
-    if (this.match.customScoreMultipliers.mapRolls.has(param)) {
-      return getOrDefault(this.match.customScoreMultipliers.mapRolls, param, 200);
-    } else {
-      return getOrDefault(this.match.customScoreMultipliers.mapRolls, mod, 200);
-    }
+    return new MapInfo(map, param, pool.mods ?? mod, pool.multiplier ?? 1);
   }
 
   private rotatePickTeam() {
@@ -783,26 +836,30 @@ export class MatchHelper extends LobbyPlugin {
     this.lobby.SendMessage(`请队伍 ${this.match.teams[this.currentPickTeam].name} 队长选图`);
   }
 
-  private isLeader(player: string): TeamInfo | null {
+  private isLeader(p: PlayerInfo | Player): TeamInfo | null {
     for (const team of this.match.teams) {
-      if (team.leader.name === player) {
+      if (team.leader.name === p.name || (team.leader.id === p.id && p.id)) {
         return team;
       }
     }
     return null;
   }
 
-  private getPlayerTeam(player: string): TeamInfo | null {
+  private getPlayer(player: string): PlayerInfo | null {
+    return this.match.players.get(player) ?? null;
+  }
+
+  private getPlayerTeam(p: string): TeamInfo | null {
     for (const team of this.match.teams) {
-      const members = team.members.map(m => m.name);
-      if (members.includes(player)) {
-        return team;
+      for (const member of team.members) {
+        if (member.name === p)
+          return team;
       }
     }
     return null;
   }
 
-  private getPlayerSettings(player: Player): PlayerSettings | null {
+  private getPlayerSettings(player: PlayerInfo | Player): PlayerSettings | null {
     const playerSettings = this.lobby.settingParser.result;
     if (playerSettings) {
       for (const player1 of playerSettings.players) {

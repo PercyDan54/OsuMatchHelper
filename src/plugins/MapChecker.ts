@@ -210,7 +210,7 @@ export class MapChecker extends LobbyPlugin {
             break;
           case FetchBeatmapErrorReason.NotFound:
             this.logger.info(`Beatmap cannot be found. Checked beatmap: ${mapId}`);
-            this.rejectMap(`[https://osu.ppy.sh/b/${mapId} ${mapTitle}] had already been removed from the website.`, false);
+            this.rejectMap(`[https://osu.ppy.sh/b/${mapId} ${mapTitle}] 在官网不存在`, false);
             break;
           case FetchBeatmapErrorReason.PlayModeMismatched:
             this.logger.info(`Gamemode mismatched. Checked beatmap: ${mapId}`);
@@ -218,7 +218,7 @@ export class MapChecker extends LobbyPlugin {
             break;
           case FetchBeatmapErrorReason.NotAvailable:
             this.logger.info(`Beatmap is not available. Checked beatmap: ${mapId}`);
-            this.rejectMap(`[https://osu.ppy.sh/b/${mapId} ${mapTitle}] is not available for download.`, false);
+            this.rejectMap(`[https://osu.ppy.sh/b/${mapId} ${mapTitle}] 无法在官网下载`, false);
             break;
         }
       } else {
@@ -270,19 +270,14 @@ export class MapChecker extends LobbyPlugin {
     desc = desc.replace(/\$\{title\}/g, set.title);
     desc = desc.replace(/\$\{map_id\}/g, map.id.toString());
     desc = desc.replace(/\$\{beatmapset_id\}/g, set.id.toString());
-    desc = desc.replace(/\$\{star\}/g, MapChecker.roundNumber(map.difficulty_rating, 2).toString());
+    desc = desc.replace(/\$\{star\}/g, roundNumber(map.difficulty_rating, 2).toString());
     desc = desc.replace(/\$\{length\}/g, secToTimeNotation(map.total_length));
     desc = desc.replace(/\$\{bpm\}/g, map.bpm.toString());
-    desc = desc.replace(/\$\{ar\}/g, MapChecker.roundNumber(map.ar).toString());
-    desc = desc.replace(/\$\{cs\}/g, MapChecker.roundNumber(map.cs).toString());
-    desc = desc.replace(/\$\{od\}/g, MapChecker.roundNumber(map.accuracy).toString());
-    desc = desc.replace(/\$\{hp\}/g, MapChecker.roundNumber(map.drain).toString());
+    desc = desc.replace(/\$\{ar\}/g, roundNumber(map.ar).toString());
+    desc = desc.replace(/\$\{cs\}/g, roundNumber(map.cs).toString());
+    desc = desc.replace(/\$\{od\}/g, roundNumber(map.accuracy).toString());
+    desc = desc.replace(/\$\{hp\}/g, roundNumber(map.drain).toString());
     return desc;
-  }
-
-  private static roundNumber(num: number, digit: number = 1): number {
-    const mult = Math.pow(10, digit);
-    return (Math.round(num * mult) / mult);
   }
 
   GetPluginStatus(): string {
@@ -307,6 +302,11 @@ export class MapChecker extends LobbyPlugin {
         break;
     }
   }
+}
+
+function roundNumber(num: number, digit: number = 1): number {
+  const mult = Math.pow(10, digit);
+  return (Math.round(num * mult) / mult);
 }
 
 export function secToTimeNotation(sec: number): string {
