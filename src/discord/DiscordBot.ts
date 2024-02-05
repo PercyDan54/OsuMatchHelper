@@ -98,7 +98,7 @@ export class DiscordBot {
   }
 
   checkMemberHasAhrAdminRole(member: GuildMember) {
-    return member.roles.cache.find(f => f.name === ADMIN_ROLE.name) !== undefined;
+    return member.roles.cache.find(f => f.name === ADMIN_ROLE.name || f.name === 'staff') !== undefined;
   }
 
   async registerCommandsAndRoles(guild: Guild) {
@@ -419,11 +419,11 @@ export class DiscordBot {
       delete this.ahrs[ahr.discordChannelId];
       ahr.lobby.ReceivedBanchoResponse.off(updateHandler);
       this.deleteMatchSummary(ahr);
+      this.sendMatchResults(ahr);
     });
     ahr.setGuildId(interaction.guildId);
     ahr.stopTransferLog();
     this.ahrs[lid] = ahr;
-
   }
 
   async startTransferLog(ahr: OahrDiscord, guild: Guild) {
@@ -546,6 +546,19 @@ export class DiscordBot {
       }
     } catch (e: any) {
       logger.error(`@DiscordBot#deleteMatchSummary\n${e.message}\n${e.stack}`);
+    }
+  }
+
+  async sendMatchResults(ahr: OahrDiscord) {
+    if (!ahr.matchHelper.option.enabled)
+      return;
+
+    try {
+      const guild = await this.discordClient.guilds.fetch(ahr.guildId);
+      const channel = await this.getOrCreateMatchesChannel(guild);
+      await channel.send({ embeds: [ahr.createMatchSummaryEmbed()] });
+    } catch (e: any) {
+      logger.error(`@DiscordBot#sendMatchResults\n${e.message}\n${e.stack}`);
     }
   }
 }

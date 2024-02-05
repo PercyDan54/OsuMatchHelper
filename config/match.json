@@ -1,11 +1,11 @@
 {
-  "name": "ZKFC S2",
+  "name": "NDC S2",
   "timer": 120,
   "rotateOnTimeout": false,
   "bestOf": 13,
   "maxBan": 2,
   "teamSize": 3,
-  "referees": ["BurgerKing"],
+  "referees": [""],
   "defaultMod": "NF",
   "tieBreaker": {
     "timer": 120,
@@ -15,6 +15,51 @@
     "mods": {
       "Easy": 1.8
     }
+  },
+  "mapBaseScores": {
+    "NM1": 100,
+    "NM2": 60,
+    "NM3": 55,
+    "NM4": 30,
+    "NM5": 40,
+    "NM6": 65,
+    "HD1": 40,
+    "HD2": 30,
+    "HD3": 40,
+    "HR1": 50,
+    "HR2": 75,
+    "HR3": 35,
+    "DT1": 120,
+    "DT2": 50,
+    "DT3": 100,
+    "DT4": 65,
+    "FM1": 75,
+    "FM2": 45,
+    "FM3": 50,
+    "FM4": 65,
+    "TB": 75
+  },
+  "mapRolls": {
+    "NM1": 100,
+    "NM2": 70,
+    "NM3": 65,
+    "NM": 45,
+    "NM6": 55,
+    "HD1": 55,
+    "HD2": 40,
+    "HD3": 50,
+    "HR1": 75,
+    "HR2": 60,
+    "HR3": 45,
+    "DT1": 120,
+    "DT2": 60,
+    "DT3": 75,
+    "DT4": 60,
+    "FM1": 100,
+    "FM2": 65,
+    "FM3": 50,
+    "FM4": 50,
+    "TB": 125
   },
   "maps": {
     "NM": [
@@ -53,17 +98,25 @@
       ]
     }
   },
-  "activeTeams":["工作有没有认真做 工资涨没涨", "reading god"],
+  "activeTeams":["TestA", "TestB"],
   "teams": [
     {
       "name": "TestA",
-      "leader": "PercyDan",
+      "leader": "DIEWAY0123",
       "members": [
         {
-          "name": "a",
-          "id": 233
+          "name": "Megumin914",
+          "id": 16130896
         }
       ]
+    },
+    {
+      "name": "TestB",
+      "leader": {
+        "name": "Hoshizora_3",
+        "id": 14509964
+      },
+      "members": []
     },
     {
       "name": "reading god",

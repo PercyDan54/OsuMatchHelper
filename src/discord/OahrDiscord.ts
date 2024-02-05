@@ -111,6 +111,8 @@ export class OahrDiscord extends OahrBase {
     embed.addField('Status', `\`${stat.text}\``, true);
     embed.addField('Host', `\`${host}\``, true);
     embed.addField('Regulation(s)', `\`${this.checker.getRegulationDescription()}\``, true);
+    if (this.matchHelper.option.enabled)
+      embed.addField('Score', this.matchHelper.GetMatchScoreMessage(), false);
     embed.addField('Beatmap', `${lobby.mapTitle !== '' ? `\`${lobby.mapTitle}\`\nhttps://osu.ppy.sh/b/${lobby.mapId}` : `https://osu.ppy.sh/b/${lobby.mapId}`}`, false);
     const ho = this.getPlayerOrders();
     if (ho !== '') {
@@ -121,6 +123,21 @@ export class OahrDiscord extends OahrBase {
       embed.addField('Keep(s)', `\`${keeps}\``, false);
     }
     embed.setTimestamp();
+    return embed;
+  }
+
+  createMatchSummaryEmbed(): MessageEmbed {
+    const embed = new MessageEmbed().setTitle(`Match Results | ${this.lobby.lobbyName}`).setURL(`https://osu.ppy.sh/mp/${this.lobby.lobbyId}`);
+    embed.addField('**Match Score**', this.matchHelper.GetMatchScoreMessage(), false);
+    embed.addField('__Match Summary__', this.matchHelper.GetMatchSummaryMessage(), false);
+
+    let refText = '';
+    const refs = Array.from(this.lobby.playersMap.values()).filter(v => v.isReferee && !v.isAuthorized).map(v => v.name).join(', ');
+    if (refs) {
+      refText = `Referees: ${refs} | `;
+    }
+
+    embed.setFooter({text: `${refText}${new Date().toLocaleString()}`});
     return embed;
   }
 
