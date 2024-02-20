@@ -168,8 +168,9 @@ export class MatchHelper extends LobbyPlugin {
     return this.discordMessages.join('\n');
   }
 
-  private loadMatch() {
-    const config = path.join('config', 'match.json');
+  private loadMatch(configName: string = '') {
+    const file = configName === '' ? 'match.json' : `match-${configName}.json`;
+    const config = path.join('config', file);
 
     if (fs.existsSync(config)) {
       const match = JSON.parse(fs.readFileSync(config, 'utf8'));
@@ -218,6 +219,7 @@ export class MatchHelper extends LobbyPlugin {
 
       this.match = match;
       this.loadTeams();
+      this.lobby.SendMessage('Loaded match config');
       this.logger.info('Loaded match config');
     } else {
       this.logger.error('Match config does not exist');
@@ -240,6 +242,7 @@ export class MatchHelper extends LobbyPlugin {
       if (teams.has(t)) {
         this.match.teams.push(teams.get(t) as TeamInfo);
       } else {
+        this.match.teams.push(new TeamInfo());
         this.logger.warn(`Team ${t} not found`);
       }
     }
@@ -377,19 +380,24 @@ export class MatchHelper extends LobbyPlugin {
                 for (const team of this.match.teams) {
                   let needsHidden = true;
                   let needsHardRock = true;
+                  let needsAny = true;
                   for (const member of team.members) {
                     if (!players.includes(member.name)) {
                       continue;
                     }
                     const playerSettings = this.getPlayerSettings(member);
-                    const mods = playerSettings?.options.split(' / ')[1] ?? '';
+                    const split = playerSettings?.options.split(' / ') ?? [''];
+                    const mods = split[split.length - 1];
                     if (!mods.includes('NoFail'))
                       noNF.push(member.name);
-                    if (mods.includes('Hidden')) {
-                      needsHidden = false;
-                    }
                     if (mods.includes('HardRock')) {
                       needsHardRock = false;
+                    }
+                    else if (mods.includes('Hidden')) {
+                      needsHidden = false;
+                    }
+                    if (mods !== '' && mods !== 'NoFail' && !needsHidden && !needsHardRock) {
+                      needsAny = false;
                     }
                   }
                   let msg = `队伍 ${team.name} 缺少`;
@@ -399,7 +407,10 @@ export class MatchHelper extends LobbyPlugin {
                   if (needsHardRock) {
                     msg += ' HR';
                   }
-                  if ((needsHidden || needsHardRock) && !this.tie) {
+                  if (needsAny) {
+                    msg += ' 任意mod';
+                  }
+                  if ((needsHidden || needsHardRock || needsAny) && !this.tie) {
                     problem = true;
                     msg += ' 选手';
                     this.lobby.SendMessage(msg);
@@ -454,7 +465,7 @@ export class MatchHelper extends LobbyPlugin {
   }
 
   private sendRoll() {
-    this.lobby.SendMessageWithDelayAsync(`本图roll点：${this.getMapRoll(this.currentPick)} | 基准分数: ${(this.getMapBaseScore(this.currentPick) * 10000).toLocaleString('en-US')}`, 4000).then();
+    this.lobby.SendMessageWithDelayAsync(`本图roll点: ${this.getMapRoll(this.currentPick)} | 基准分数: ${(this.getMapBaseScore(this.currentPick) * 10000).toLocaleString('en-US')}`, 4000).then();
   }
 
   private sendTargetScore() {
@@ -472,7 +483,7 @@ export class MatchHelper extends LobbyPlugin {
 
   private getMapBaseScore(map: MapInfo | null): number {
     if (!map) return 0;
-    if (this.match.mapRolls.has(map.name)) {
+    if (this.match.mapBaseScores.has(map.name)) {
       return getOrDefault(this.match.mapBaseScores, map.name, 50);
     } else {
       return getOrDefault(this.match.mapBaseScores, map.mods, 50);
@@ -482,9 +493,9 @@ export class MatchHelper extends LobbyPlugin {
   private getMapRoll(map: MapInfo | null): number {
     if (!map) return 0;
     if (this.match.mapRolls.has(map.name)) {
-      return getOrDefault(this.match.mapRolls, map.name, 200);
+      return getOrDefault(this.match.mapRolls, map.name, 100);
     } else {
-      return getOrDefault(this.match.mapRolls, map.id, 200);
+      return getOrDefault(this.match.mapRolls, map.id, 100);
     }
   }
 
@@ -566,9 +577,10 @@ export class MatchHelper extends LobbyPlugin {
     this.tie = true;
     this.lobby.SendMessage('即将进入TB环节');
     this.SendPluginMessage('changeMap', [this.match.tieBreaker.map.toString()]);
-    this.setMod('FM');
+    this.setMod('FreeMod');
     this.currentPick = new MapInfo(this.match.tieBreaker.map, 'TB', 'FreeMod');
     this.lobby.SendMessage(`!mp timer ${this.match.tieBreaker.timer}`);
+    this.sendRoll();
   }
 
   private onPlayerChat(message: string, player: Player) {
@@ -727,8 +739,14 @@ export class MatchHelper extends LobbyPlugin {
               if (args.length < 3) {
                 return;
               }
+
               this.match.activeTeams = [args[1], args[2]];
               this.loadTeams();
+              break;
+            case 'match':
+              if (args.length < 2 || !player.isReferee)
+                return;
+              this.loadMatch(args[1]);
               break;
           }
         }
